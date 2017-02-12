@@ -1,0 +1,458 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
+  <PropertyGroup>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>7.0</ProjectVersion>
+    <ToolchainName>com.Atmel.AVRGCC8.CPP</ToolchainName>
+    <ProjectGuid>{2e95f91f-137c-4270-a724-98d3a40119b0}</ProjectGuid>
+    <avrdevice>atmega328p</avrdevice>
+    <avrdeviceseries>none</avrdeviceseries>
+    <OutputType>Executable</OutputType>
+    <Language>CPP</Language>
+    <OutputFileName>$(MSBuildProjectName)</OutputFileName>
+    <OutputFileExtension>.elf</OutputFileExtension>
+    <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
+    <AssemblyName>osmose_vMicro</AssemblyName>
+    <Name>osmose_vMicro</Name>
+    <RootNamespace>osmose_vMicro</RootNamespace>
+    <ToolchainFlavour>Native</ToolchainFlavour>
+    <KeepTimersRunning>true</KeepTimersRunning>
+    <OverrideVtor>false</OverrideVtor>
+    <OverrideVtorValue>
+    </OverrideVtorValue>
+    <eraseonlaunchrule>0</eraseonlaunchrule>
+    <ProgFlashFromRam>true</ProgFlashFromRam>
+    <RamSnippetAddress>0x20000000</RamSnippetAddress>
+    <CacheFlash>true</CacheFlash>
+    <UncachedRange />
+    <BootSegment>0</BootSegment>
+    <AsfFrameworkConfig>
+      <framework-data>
+        <options />
+        <configurations />
+        <files />
+        <documentation help="" />
+        <offline-documentation help="" />
+        <dependencies>
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.28.1" />
+        </dependencies>
+      </framework-data>
+    </AsfFrameworkConfig>
+    <preserveEEPROM>true</preserveEEPROM>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <ToolchainSettings>
+      <AvrGccCpp>
+  <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
+  <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
+  <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
+  <avrgcc.common.outputfiles.srec>True</avrgcc.common.outputfiles.srec>
+  <avrgcc.common.outputfiles.usersignatures>False</avrgcc.common.outputfiles.usersignatures>
+  <avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>__AVR_ATmega328p__</Value>
+      <Value>__AVR_ATmega328P__</Value>
+      <Value>_VMDEBUG=1</Value>
+      <Value>ARDUINO=106013</Value>
+      <Value>ARDUINO_MAIN</Value>
+      <Value>F_CPU=16000000L</Value>
+      <Value>__AVR__</Value>
+      <Value>ARDUINO_AVR_NANO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+    </ListValues>
+  </avrgcc.compiler.symbols.DefSymbols>
+  <avrgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries</Value>
+      <Value>C:/Users/Marc/Documents/Arduino/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs</Value>
+      <Value>../../../osmose_vMicro</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include</Value>
+    </ListValues>
+  </avrgcc.compiler.directories.IncludePaths>
+  <avrgcc.compiler.optimization.level>Optimize (-O1)</avrgcc.compiler.optimization.level>
+  <avrgcc.compiler.optimization.PackStructureMembers>True</avrgcc.compiler.optimization.PackStructureMembers>
+  <avrgcc.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcc.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcc.compiler.optimization.DebugLevel>Default (-g2)</avrgcc.compiler.optimization.DebugLevel>
+  <avrgcc.compiler.warnings.AllWarnings>True</avrgcc.compiler.warnings.AllWarnings>
+  <avrgcc.compiler.miscellaneous.OtherFlags />
+  <avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcccpp.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>__AVR_ATmega328p__</Value>
+      <Value>__AVR_ATmega328P__</Value>
+      <Value>_VMDEBUG=1</Value>
+      <Value>ARDUINO=106013</Value>
+      <Value>ARDUINO_MAIN</Value>
+      <Value>F_CPU=16000000L</Value>
+      <Value>__AVR__</Value>
+      <Value>ARDUINO_AVR_NANO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+    </ListValues>
+  </avrgcccpp.compiler.symbols.DefSymbols>
+  <avrgcccpp.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries</Value>
+      <Value>C:/Users/Marc/Documents/Arduino/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs</Value>
+      <Value>../../../osmose_vMicro</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include</Value>
+    </ListValues>
+  </avrgcccpp.compiler.directories.IncludePaths>
+  <avrgcccpp.compiler.optimization.level>Optimize (-O1)</avrgcccpp.compiler.optimization.level>
+  <avrgcccpp.compiler.optimization.PackStructureMembers>True</avrgcccpp.compiler.optimization.PackStructureMembers>
+  <avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcccpp.compiler.optimization.DebugLevel>Default (-g2)</avrgcccpp.compiler.optimization.DebugLevel>
+  <avrgcccpp.compiler.warnings.AllWarnings>True</avrgcccpp.compiler.warnings.AllWarnings>
+  <avrgcccpp.assembler.debugging.DebugLevel>Default (-Wa,-g)</avrgcccpp.assembler.debugging.DebugLevel>
+</AvrGccCpp>
+    </ToolchainSettings>
+    <VMSETTING_IncludePaths>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility;C:/ardui_no/arduino-1.6.13/libraries;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries;C:/Users/Marc/Documents/Arduino/libraries;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs;../../../osmose_vMicro;C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/;C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/;C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include;C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG;C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers;</VMSETTING_IncludePaths>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <ToolchainSettings>
+      <AvrGccCpp>
+  <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
+  <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
+  <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
+  <avrgcc.common.outputfiles.srec>True</avrgcc.common.outputfiles.srec>
+  <avrgcc.common.outputfiles.usersignatures>False</avrgcc.common.outputfiles.usersignatures>
+  <avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>__AVR_ATmega328p__</Value>
+      <Value>__AVR_ATmega328P__</Value>
+      <Value>_VMDEBUG=1</Value>
+      <Value>ARDUINO=106013</Value>
+      <Value>ARDUINO_MAIN</Value>
+      <Value>F_CPU=16000000L</Value>
+      <Value>__AVR__</Value>
+      <Value>ARDUINO_AVR_NANO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+    </ListValues>
+  </avrgcc.compiler.symbols.DefSymbols>
+  <avrgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries</Value>
+      <Value>C:/Users/Marc/Documents/Arduino/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs</Value>
+      <Value>../../../osmose_vMicro</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include</Value>
+    </ListValues>
+  </avrgcc.compiler.directories.IncludePaths>
+  <avrgcc.compiler.optimization.level>Optimize (-O1)</avrgcc.compiler.optimization.level>
+  <avrgcc.compiler.optimization.PackStructureMembers>True</avrgcc.compiler.optimization.PackStructureMembers>
+  <avrgcc.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcc.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcc.compiler.optimization.DebugLevel>Default (-g2)</avrgcc.compiler.optimization.DebugLevel>
+  <avrgcc.compiler.warnings.AllWarnings>True</avrgcc.compiler.warnings.AllWarnings>
+  <avrgcc.compiler.miscellaneous.OtherFlags />
+  <avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcccpp.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>__AVR_ATmega328p__</Value>
+      <Value>__AVR_ATmega328P__</Value>
+      <Value>_VMDEBUG=1</Value>
+      <Value>ARDUINO=106013</Value>
+      <Value>ARDUINO_MAIN</Value>
+      <Value>F_CPU=16000000L</Value>
+      <Value>__AVR__</Value>
+      <Value>ARDUINO_AVR_NANO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+    </ListValues>
+  </avrgcccpp.compiler.symbols.DefSymbols>
+  <avrgcccpp.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries</Value>
+      <Value>C:/Users/Marc/Documents/Arduino/libraries</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs</Value>
+      <Value>../../../osmose_vMicro</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG</Value>
+      <Value>C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/</Value>
+      <Value>C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include</Value>
+    </ListValues>
+  </avrgcccpp.compiler.directories.IncludePaths>
+  <avrgcccpp.compiler.optimization.level>Optimize (-O1)</avrgcccpp.compiler.optimization.level>
+  <avrgcccpp.compiler.optimization.PackStructureMembers>True</avrgcccpp.compiler.optimization.PackStructureMembers>
+  <avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcccpp.compiler.optimization.DebugLevel>Default (-g2)</avrgcccpp.compiler.optimization.DebugLevel>
+  <avrgcccpp.compiler.warnings.AllWarnings>True</avrgcccpp.compiler.warnings.AllWarnings>
+  <avrgcccpp.assembler.debugging.DebugLevel>Default (-Wa,-g)</avrgcccpp.assembler.debugging.DebugLevel>
+</AvrGccCpp>
+    </ToolchainSettings>
+    <VMSETTING_IncludePaths>C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/EEPROM/src/utility;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries/Wire/src/utility;C:/ardui_no/arduino-1.6.13/libraries;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/libraries;C:/Users/Marc/Documents/Arduino/libraries;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/cores/arduino;C:/ardui_no/arduino-1.6.13/hardware/arduino/avr/variants/eightanaloginputs;../../../osmose_vMicro;C:/ardui_no/arduino-1.6.13/hardware/tools/avr/avr/include/;C:/ardui_no/arduino-1.6.13/hardware/tools/avr//avr/include/avr/;C:/ardui_no/arduino-1.6.13/hardware/tools/avr/lib/gcc/avr/4.8.1/include;C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers/VM_DBG;C:/Program Files (x86)/Atmel/Studio/7.0/Extensions/yyt2ifx5.3nw/Micro Platforms/default/debuggers;</VMSETTING_IncludePaths>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="libmodbus\LICENSE">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="libmodbus\README.md">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="osmose_vMicro.ino">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="U8glib\ChangeLog">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="U8glib\INSTALL.TXT">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="U8glib\license.txt">
+      <SubType>compile</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="libmodbus" />
+    <Folder Include="OneWire" />
+    <Folder Include="U8glib" />
+    <Folder Include="U8glib\utility" />
+    <Folder Include="__vm\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="EEPROMAnything.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libmodbus\Modbusino.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libmodbus\Modbusino.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="marelab_dimm.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="OLED.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="OLED.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="OneWire\OneWire.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="OneWire\OneWire.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="PWMServoDriver.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="PWMServoDriver.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="TimerOne.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="TimerOne.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\U8glib.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\U8glib.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_bitmap.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_circle.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_clip.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_api.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_api_16gr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_arduino_common.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_arduino_no_en_parallel.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_arduino_port_d_wr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_arduino_ssd_i2c.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_arduino_uc_i2c.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_i2c.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_io.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_com_null.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_cursor.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_delay.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_gprof.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_ht1632.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_null.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_sbn1661_122x32.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_ssd1306_128x32.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_ssd1306_128x64.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_dev_ssd1306_64x48.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_ellipse.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_font.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_font_data.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_line.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_ll_api.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_page.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb14v1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb16h1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb16h2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb16v1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb16v2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb32h1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8h1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8h1f.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8h2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8h8.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8v1.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pb8v2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pbxh16.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_pbxh24.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_polygon.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_rect.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_rot.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_scale.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_state.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_u16toa.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_u8toa.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="U8glib\utility\u8g_virtual_screen.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="__vm\.osmose_vMicro.vsarduino.h">
+      <SubType>compile</SubType>
+    </Compile>
+  </ItemGroup>
+  <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
+</Project>
