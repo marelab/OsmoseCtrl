@@ -5,7 +5,7 @@
 	        all non-arduino files created by visual micro and all visual studio project or solution files can be freely deleted and are not required to compile a sketch (do not delete your own code!).
 	        note: debugger breakpoints are stored in '.sln' or '.asln' files, knowledge of last uploaded breakpoints is stored in the upload.vmps.xml file. Both files are required to continue a previous debug session without needing to compile and upload again
 	
-	Hardware: Arduino Nano w/ ATmega328, Platform=avr, Package=arduino
+	Hardware: Arduino Pro or Pro Mini w/ ATmega328 (5V, 16 MHz), Platform=avr, Package=arduino
 */
 
 #define __AVR_ATmega328p__
@@ -17,26 +17,27 @@
 #define __AVR__
 #define F_CPU 16000000L
 #define ARDUINO 106013
-#define ARDUINO_AVR_NANO
+#define ARDUINO_AVR_PRO
 #define ARDUINO_ARCH_AVR
  #include <VM_DBG.h>
 
 void ReadMarelabConfig();
 void WriteMarelabConfig();
-void drawInt(uint8_t x, uint8_t y, uint16_t value, uint8_t place, bool invers);
 void DisplayStatus();
 void draw_Menu();
 void drawModbusSetup();
-void drawTime(uint8_t xt1, uint8_t yt1, uint8_t menu, unsigned long hh,unsigned long mm,unsigned long ss,bool hhmm);
+void drawDBounce();
+void drawSafety();
+void drawCleaning();
+void drawMode();
 void drawInfo();
-void drawKeyboard();
-void drawKeyboard2();
 void draw(void);
 void checkActiveButtons();
-void SetTimeOnScreen(uint8_t menu, unsigned long &hh, unsigned long &mm);
 void calcMenu(int MENU_SIZE);
 void DoMenu();
 void ScreenSaver();
+void reset_Params(void);
+void calcEc(int raw);
 void UpdateSensor(struct TSENSOR &sensor);
 //
 //

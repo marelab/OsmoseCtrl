@@ -24,19 +24,47 @@ const uint8_t T_BIOS_UPDATE[] 	PROGMEM = "!!!UPDATING!!!\0";
 const uint8_t T_SETUP[] 		PROGMEM = "SETUP\0";
 const uint8_t T_MODBUS_ADRESS[] PROGMEM = "Modbus\0";
 const uint8_t T_TIME_SETUP[] 	PROGMEM = "Time\0";
-const uint8_t T_IP_ADRESS[] 	PROGMEM = "WLAN\0";
 const uint8_t T_MODBUS_ID[] 	PROGMEM = "ID:\0";
 const uint8_t T_MODSETUP_D[] 	PROGMEM = "The ID must be unique\0";
 const uint8_t T_INFO_SETUP[] 	PROGMEM = "Info\0";
-const uint8_t T_DIMM_SETUP[] 	PROGMEM = "DIMM\0";
+const uint8_t T_BOUNCE_SETUP[] 	PROGMEM = "Dbounce\0";
 const uint8_t T_BACK[] 			PROGMEM = "BACK\0";
 const uint8_t T_SAVE[] 			PROGMEM = "SAVE\0";
 const uint8_t T_MARELAB[]		PROGMEM = "marelab \0";
 const uint8_t T_FIRMWARE[]		PROGMEM = "firmware \0";
 const uint8_t T_ACTIVE[]		PROGMEM = "activ: \0";
-const uint8_t T_CHANNEL[]		PROGMEM = "Channel: \0";
 const uint8_t T_START[]			PROGMEM = "S:\0";
 const uint8_t T_END[]			PROGMEM = "E:\0";
+
+const uint8_t T_OSMOSE[]		PROGMEM = " OSMOSE ";
+const uint8_t T_CLEAN[]			PROGMEM = "  CLEAN ";
+const uint8_t T_IDLE[]			PROGMEM = "   IDLE ";
+const uint8_t T_REFILL[]		PROGMEM = " REFILL ";
+const uint8_t T_ERROR[]			PROGMEM = "ERROR SENSOR";
+const uint8_t T_ERROR_TIME[]	PROGMEM = "ERROR TIME";
+const uint8_t T_MODERUNMIN[]	PROGMEM = "Run(min):";
+const uint8_t T_MODERUNSEC[]	PROGMEM = "Run(sec):";
+const uint8_t T_REFILLRUNSEC[]	PROGMEM = "ReFill(sec):";
+
+
+const uint8_t T_SAQUA[]			PROGMEM = "S.Aqua (sec): ";
+const uint8_t T_STOP[]			PROGMEM = "S.Top  (sec):";
+const uint8_t T_SBOT[]			PROGMEM = "S.Bot  (sec):";
+
+const uint8_t T_SAFETY[]		PROGMEM = "Safety";
+const uint8_t T_SAFETY_CYLE[]	PROGMEM = "OsmoTime(min):";
+const uint8_t T_SAFETY_REFILL[]	PROGMEM = "RefiTime(sec):";
+
+const uint8_t T_CLEANING[]		PROGMEM = "Clean";
+const uint8_t T_CLEAN_DURA[]	PROGMEM = "Duration(sec):";
+const uint8_t T_CLEAN_REPE[]	PROGMEM = "Repeat  (min):";
+
+
+// Modes
+const uint8_t T_OSMOSE_MODE[] PROGMEM = "Mode\0";
+const uint8_t T_OSMOSE_MANUEL[] PROGMEM = "MANUEL\0";
+const uint8_t T_OSMOSE_AUTO[]   PROGMEM = "AUTO  \0";
+
 
 //104x20
 static const unsigned char PROGMEM marelab_logo []  = {
@@ -78,25 +106,6 @@ static const unsigned char PROGMEM ICON_MODBUS [] = {
 		0xFF, 0xFF, 0x08, 0x00, 0x08, 0x00, 0x3E, 0x00, 0x22, 0x00, 0x22, 0x00, 0x3E, 0x00, 0x00, 0x00
 		};
 
-static const unsigned char PROGMEM ICON_WLAN [] = {
-		B00000000,B00000000,
-		B00000000,B00000000,
-		B11110000,B00001111,
-		B11111100,B00111111,
-		B00011110,B01111000,
-		B10000111,B11100001,
-		B11110011,B11001111,
-		B00111000,B00011100,
-		B00011000,B00011000,
-		B11000000,B00000011,
-		B11100000,B00000111,
-		B00100000,B00000100,
-		B10000000,B00000001,
-		B10000000,B00000001,
-		B00000000,B00000000,
-		B00000000,B00000000
-};
-
 static const unsigned char PROGMEM ICON_STANDALONE [] ={
 		B10000000,B00000000,
 		B10000000,B00000000,
@@ -116,36 +125,23 @@ static const unsigned char PROGMEM ICON_STANDALONE [] ={
 		B00000000,B00000000
 };
 
-/*
-ABCDEFGHIJKLMNOPQR       65-90
-STUVWXYZ0123456789       48-57
-abcdefghijklmnopyr       97-122
-stuvwxyz      NEXT
 
-!"#$%&'()*+,-./:;<=       33-47 58-61
->?@[\]^_`{|}~             62-64 91-96 123-126
-              BACK
-*/
-static const unsigned char PROGMEM ASCII_1 [] ={
-	'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','\0'    // 65-90
-};
-static const unsigned char PROGMEM ASCII_2 [] ={
-	'S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','\0'    // 48-57
+static const unsigned char PROGMEM ICON_CLEAN [] = {
+	0x80, 0x00, 0x80, 0x01, 0xE0, 0x1B, 0xF0, 0x3B, 0xBC, 0x31, 0x9C, 0x60, 0x0E, 0x60, 0x06, 0x60, 
+	0x0E, 0x60, 0x1C, 0x60, 0x3C, 0x72, 0x38, 0x3B, 0xB0, 0x1F, 0xB0, 0x0F, 0x00, 0x03, 0x00, 0x02 
 };
 
-static const unsigned char PROGMEM ASCII_3 [] ={
-	'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','y','r','\0'
-};    // 97-122
+static const unsigned char PROGMEM ICON_WATERON [] = {
+	0x00, 0x00, 0xF8, 0x01, 0x60, 0x00, 0x63, 0x00, 0xFF, 0x03, 0xFF, 0x07, 0xFF, 0x0F, 0xFF, 0x0F, 
+	0x83, 0x0F, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x80, 0x24, 0x00, 0x00, 0x40, 0x44 
+};
 
-static const unsigned char PROGMEM ASCII_4 [] ={
-	's','t','u','v','w','x','y','z',' ','@','#','$','&','%','N','E','X','T','\0'
+static const unsigned char PROGMEM ICON_REFILL [] = {
+	0x80, 0x01, 0xC0, 0x03, 0x40, 0x02, 0x60, 0x06, 0x30, 0x0C, 0x10, 0x08, 0x18, 0x18, 0x08, 0x10, 
+	0x0C, 0x36, 0x04, 0x24, 0x04, 0x26, 0x0C, 0x36, 0x08, 0x13, 0x18, 0x18, 0x70, 0x0E, 0xC0, 0x03 
 };
-static const unsigned char PROGMEM ASCII_1_2 [] ={
-	'!','"','#','$','%','&','(',')','*','+',',','-','.','/',':',';','<','=','\0'  	//33-47 58-61
-};
-static const unsigned char PROGMEM ASCII_2_2 [] ={
-	'>','?','@','[','\\',']','^','`','{','|','}','~',' ',' ','K','E','Y','1','\0'  	//33-47 58-61
-};
-          				// 62-64 91-96 123-126
+
+
+
 //Do not add code below this line
 #endif /* _marelab_dimm_H_ */

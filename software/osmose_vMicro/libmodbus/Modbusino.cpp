@@ -279,6 +279,29 @@ unsigned int calculateCRC(byte bufferSize)
   temp &= 0xFFFF;
   return temp; // the returned value is already swopped - crcLo byte is first & crcHi byte is last
 }
+/*
+
+unsigned int calculateCRC(byte length) {
+	int i, j;
+	uint16_t crc = 0xFFFF;
+	uint16_t tmp;
+
+	// calculate crc16
+	for (i = 0; i < length; i++) {
+		crc = crc ^ frame[i];
+
+		for (j = 0; j < 8; j++) {
+			tmp = crc & 0x0001;
+			crc = crc >> 1;
+			if (tmp) {
+				crc = crc ^ 0xA001;
+			}
+		}
+	}
+	return crc;
+}
+
+*/
 
 void sendPacket(unsigned char bufferSize)
 {

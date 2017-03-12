@@ -96,24 +96,17 @@
 /* BACK																				*/
 /*																					*/
 /************************************************************************************/
-
-
-
-	
-
-
 #include <stdlib.h>
-//#include "Arduino.h"
 #include <Wire.h>
 #include <EEPROM.h>
-
 #include "EEPROMAnything.h"
 #include "libmodbus/Modbusino.h"
 #include "OneWire/OneWire.h"
 #include <avr/pgmspace.h>
-//#include "TimerOne.h"
 #include "marelab_dimm.h"
 #include "OLED.h"
+#include "MCP3221.h"
+#include "PCA9554.h"
 
 // Pins used By Module
 #define RESET_PIN 				2	/* THIS PI HAS TO SET HIGH if LOW RESET is activate					*/
@@ -127,42 +120,51 @@
 #define SAQUA					8   /* Sensor Reef Tank Water Hight										*/
 struct TSENSOR{
 	uint8_t			S_PORT;
-	unsigned long	S_DBOUNCE;
+	unsigned int	S_DBOUNCE;
 	unsigned long	S_STABLE;
-	boolean			S_LAST_STATE;
-	boolean			S_OK;
+	boolean			S_LAST_STATE;		// STATE OF THE SENSOR THAT GETS UPDATE IN EVERY LOOP
+	boolean         S_STATE;			// STATE OF THE SENSOR THAT ONLY GETS UPDATED IF ITS STABLE OVER DBOUNCE TIME
 };
 struct TSENSOR AQUA;
 struct TSENSOR FWTANK_TOP;
 struct TSENSOR FWTANK_BOT;
+
 uint8_t GlobalStateSensor;			/* AllSensors as Byte */
 uint8_t GlobalStateSensorOld;
-#define OSMOSE_MODE_AUTO     1
-#define OSMOSE_MODE_OSMOSE   2
-#define OSMOSE_MODE_REFILL   3
 
-unsigned long OSMOSE_CLEAN_RUNTIME;
-unsigned long OSMOSE_CLEAN_REPEATTIME;
+#define PUMP_VENT_CH		0		/* I2C Channel for Pump & Vent FreshWater */
+#define VENT_CLEAN          1
+#define PUMP_REFILL         2
+
 
 boolean osmose_active;
 boolean pump_active;
 boolean osmose_active_firsttime;
 boolean CleanOn;
+
+byte ERROR_STATE;
+
 unsigned long OSMOSE_START_TIME;
 unsigned long OSMOSE_RUN_TIME;
+unsigned long REFILL_RUN_TIME;
+unsigned long REFILL_START_TIME;
+unsigned long SCREEN_SAVER_TIME;
+unsigned long CLEAN_START_TIME;
 
+//unsigned long OSMOSE_CLEAN_RUNTIME;
+//unsigned long OSMOSE_CLEAN_REPEATTIME;
 // Software Safty feature to handle mailfunction of Sensors
-unsigned long OSMOSE_MAX_RUNTIME;			// Max duration between low and high sensor if > OSMOSE to ERROR
-unsigned long OSMOSE_MAX_PUMP_RUNTIME;		// Max Duration between Refill start and Sensor Tank Signal if > ERROR
+//unsigned long OSMOSE_MAX_RUNTIME;			// Max duration between low and high sensor if > OSMOSE to ERROR
+//unsigned long OSMOSE_MAX_PUMP_RUNTIME;		// Max Duration between Refill start and Sensor Tank Signal if > ERROR
 
-uint8_t OSMOSE_MODE;
+
 
 
 
 // Modbus Settings
-#define MODBUS_BAUD			115200	/* Modbus Baud */
-#define MARELAB_TYPE			1	/* Set the device ID to get identified 								*/
-#define MARELAB_FIRWMARE  		2
+#define MODBUS_BAUD			    19200	/* Modbus Baud */
+#define MARELAB_TYPE			1000	/* Set the device ID to get identified 								*/
+#define MARELAB_FIRWMARE  		1
 #define MODBUS_REGISTER_COUNT 	31  /* COUNT of Modbus to Led Registers starting with 0					*/
 
 	
@@ -172,43 +174,33 @@ uint8_t OSMOSE_MODE;
 #define MARELAB_DEVICE_ID 		0	/* Device ID to identify marelab 	*/
 #define MARELAB_VERSION			1	/* Firmware ID to identify 		*/
 #define MARELAB_REGISTER_COUNT  2
-#define LED_COLOR1 				3	/* DIM Value channel 1			*/
-#define LED_COLOR2 				4
-#define LED_COLOR3 				5
-#define LED_COLOR4 				6
-#define LED_COLOR5 				7
-#define LED_COLOR6 				8
-#define LED_COLOR7 				9
-#define LED_COLOR8 				10
-#define LED_COLOR9 				11
-#define LED_COLOR10 			12
-#define LED_COLOR11 			13
-#define LED_COLOR12 			14
-#define LED_COLOR13 			15
-#define LED_COLOR14 			16
-#define LED_COLOR15 			17
-#define LED_COLOR16 			18
-#define DIMM_TEMPERATUR 		19	/* Chassi temperature of the dimmer	*/
-#define UNIX_DATE1				20	/* Timestap high of Dimmer RTC		*/
-#define UNIX_DATE2				21	/* Timestap low  of Dimmer RTC		*/
+
+#define MOD_OSMOSE_MODE 		3	/* 0-MANUAL 1-AUTO R/W */
+#define OSMOSE_MODE_MANUEL		0
+#define OSMOSE_MODE_AUTO		1
+
+
+#define MOD_OSMOSE_STATE 		4
+
+/* Modbus Register for Dbounce & stable R/W 
+   Because the sensor can bounce between on and off a Time as
+   DBOUNCE value in seconds is configured. The Sensor input is set 
+   active only when STABLESx >= DBOUNCEx. 
+   - DBOUNCE configures the time a Sensor has to be in a stable 
+     not changed state.
+   - STABLESx is the time the Sensor is stable 
+*/
+#define	MOD_DBOUNCE_AQUA		5
+#define	MOD_STABLES_AQUA		6
+
+#define	MOD_DBOUNCE_TANKTOP		7
+#define	MOD_STABLES_TANKTOP		8
+
+#define	MOD_DBOUNCE_TANKBOT		9
+#define	MOD_STABLES_TANKBOT		10
+  
 #define MCOMMAND        		22
-/*
- 0 nothing
- 1 free
- 2 setRTC Time
- 10 setPWM fills 20-26
- 11 getPWM fills 20-26 Two reads
- 20 getTemp Sensor 1
- 21 getTemp Sensor 2
- */
-#define MDIM_START_MIN   		23  	/* defines startpoint in sec. PWM val = 0 */
-#define MDIM_START_MAX   		24 		/* defines startendpoint in sec.  */
-#define MDIM_START_VALUE 		25 		/* PWM value for startendpoint */
-#define MDIM_END_MAX     		26 		/* defines endpoint in sec. */
-#define MDIM_END_VALUE   		27 		/* PWM value for endpoint */
-#define MDIM_END_MIN     		28 		/* defines endpoint in sec. PWM val = 0 */
-#define MDIM_CHANNEL     		29 		/* the dimchannel the values belongs to */
-#define MDIM_MODUS              30      /* CONTROLLED BY 01 STANDALONE /  00 NETWORK WLAN/MOD / 02 NETWORK WLAN /04 NETWORK WLAN */
+
 
 enum ACCESS_MODE {
 	ACC_WLAN_MODBUS = 0, ACC_STANDALONE, ACC_MOD, ACC_WLAN
@@ -238,7 +230,21 @@ const int ledPin = 13;
 
 unsigned int MODCODES = 0;
 
-OneWire ds(10);
+//OneWire ds(10);
+MCP3221 *adc;
+byte i2cAdrADC				= 0x4D;	
+const int I2CadcVRef		= 4980; //Measured millivolts of voltage input to ADC (can measure VCC to ground on MinipH for example)
+uint16_t adcRaw, adcCompare = 0;
+float temperatute;
+uint16_t adcAVG;
+//const int oscV = 185; //voltage of oscillator output after voltage divider in millivolts i.e 120mV (measured AC RMS) ideal output is about 180-230mV range
+const int	oscV			= 200; //voltage of oscillator output after voltage divider in millivolts i.e 120mV (measured AC RMS) ideal output is about 180-230mV range
+const float kCell			= 1.0; //set our Kcell constant basically our microsiemesn conversion 10-6 for 1 10-7 for 10 and 10-5 for .1
+const float Rgain			= 1000.0; //this is the measured value of the R9 resistor in ohms
+
+#define Write_Check			0x1234
+
+//Our parameter, for ease of use and eeprom access lets use a struct
 
 
 /********************************************************************************************/
@@ -253,8 +259,8 @@ enum BUTTON_STATE {
 	BT_NULL = 0, BT_ENTER, BT_LEFT, BT_RIGHT, BT_UP, BT_DOWN
 };
 //const uint8_t button[] = {1,2,3,4,5};
-const uint16_t buttonLowRange[] = { 0, 1000, 900, 800, 650, 570 };
-const uint16_t buttonHighRange[] = { 100, 1024, 950, 870, 720, 630 };
+const uint16_t buttonLowRange[] =  { 0,1010  ,830, 920, 1000, 690};
+const uint16_t buttonHighRange[] = { 0,1020, 860, 950, 1008, 710};
 //									Middle/LEFT/RIGHT/ UP / DOWN
 // Variables that will change:
 uint8_t buttonState;             // the current reading from the input pin
@@ -271,65 +277,71 @@ enum MENU_DISPLAYS {
 	DS_MAIN,
 	DS_BOOT,
 	DS_MENU,
+	DS_DBOUNCE,
+	DS_CLEANING,
+	DS_SAFETY,
 	DS_MODBUS_SETUP,
-	DS_TIME_SETUP,
-	DS_IP_SETUP,
-	DS_DIMM,
+	DS_MODE,
 	DS_INFO,
-	DS_SCREENSAVER,
-	DS_KEYBOARD,
-	DS_KEYBOARD2
+	DS_SCREENSAVER
 };
 
-enum MENU_IP_POS {
-	IP_POS_ACTIVE = 1,
-	IP_POS_SSID = 2,
-	IP_POS_WPA = 3,
-	IP_POS_BACK = 4,
-	IP_POS_SAVE = 5
-};
+
 uint8_t MODBUS_TEMP_ID = 0;	// its needed if the ModBus ID isn't chg over display
-#define MENU_SIZE_SETUP  6		   // Modbus/Time/Ip/Dimm/Info/Back
+#define MENU_SIZE_SETUP			7  // Modbus/Debounce/Info/Back
 #define MENU_SIZE_MODBUS_SETUP  4  // Modbus ID/ ACTIVE CHECKBOX/BACK/SAVE
-#define MENU_SIZE_TIME          5  // HH/MM/SS BACK SAVE
-#define MENU_SIZE_IP            5  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
-#define MENU_SIZE_DIMM          13 // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
+#define MENU_SIZE_DBOUNCE       5  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
 #define MENU_SIZE_INFO          1  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
+#define MENU_SIZE_SAFETY        4  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
+#define MENU_SIZE_CLEANING      4  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
+#define MENU_SIZE_MODE          4  // ON-OFF/IP1/IP2/IP3/IP4/BACK/SAVE
 
 #define SCREEN_SAVER_TIMEOUT    120 // Time until screensaver is activated
 unsigned long tempTime = 0;		// Transfer Time Object between GUI & EEPROM
-//char tempSSID[19]	= {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
-//char tempWPA[19] 	= {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
 uint8_t CURSOR = 0;
+
 
 /********************************************************************************************/
 
-struct DimChannel {
-	uint16_t DIM_START_MIN;
-	uint16_t DIM_START_MAX;
-	uint16_t DIM_START_VALUE;
-	uint16_t DIM_END_MAX;
-	uint16_t DIM_END_VALUE;
-	uint16_t DIM_END_MIN;
-};
+
 
 struct MarelabEEPROM {
-	uint8_t MARELAB_MODUS; /* CONTROLLED BY 01 STANDALONE /  00 NETWORK WLAN/MOD / 02 NETWORK MOD /04 NETWORK WLAN */
+	uint8_t MARELAB_MODUS; /* CONTROLLED BY 01 STANDALONE / 02 NETWORK MOD */
 	uint8_t MODBUS_ID; /* Slave ID of this device 			                                                    */
-	char tempSSID[19]; /* MAX 32 Bytes                                                                         */
-	char tempWPA[19]; /* MAX 63 Bytes                                                                         */
+	
+	// OSMOSE Mode
+	uint8_t OSMOSE_MODE;  /*0 Manuel 1 Auto */
+	
+	// Debounce settings
+	uint16_t OSMOSE_DBOUNCE_AQUA;  // ms time
+	uint16_t OSMOSE_DBOUNCE_TOP;   // ms time
+	uint16_t OSMOSE_DBOUNCE_BOTTOM;// ms time
+	
+	// Membran Cleaning
+	unsigned long OSMOSE_CLEAN_DURATION; // Time in sec the CleanVent is opened to clean the osmosis membran
+	unsigned long OSMOSE_CLEAN_REPEAT;   // Time in min after a new membran cleaning is initiated
+	
+	// Saftey Feature
+	unsigned long OSMOSE_MAX_CYCLE_TIME; // Time a complete filling of the OSMOSIS Tank can take
+	unsigned long OSMOSE_MAX_REFILL_TANK; // Max time a tank refill with osmosis water can take
+	
+	unsigned int SCREENSAVER_TIMEOUT;
+	
+	//EC_PARAMETERS ECparams;
+	unsigned int WriteCheck;
+	int eCLowCal, eCHighCal;
+	//float eCStep;
 };
 
 MarelabEEPROM ee_Config;
-DimChannel DimChannelSetup;
-uint8_t Channel = 0;
+
 
 /***********************************************************/
 /* READ EEPROM MARLAB CONFIG                               */
 /***********************************************************/
 void ReadMarelabConfig() {
 	EEPROM_readAnything(512, ee_Config);
-	mb_reg[MDIM_MODUS] = ee_Config.MARELAB_MODUS;
+	//mb_reg[MDIM_MODUS] = ee_Config.MARELAB_MODUS;
 }
 /***********************************************************/
 /* WRITE EEPROM MARLAB CONFIG                               */
@@ -339,44 +351,6 @@ void WriteMarelabConfig() {
 }
 
 /*
-void TimeToModBusRegister(DateTime time) {
-	const long LOW_MASK = ((1L << 32) - 1);
-	mb_reg[UNIX_DATE1] = (uint16_t) (time.unixtime() >> 16);
-	mb_reg[UNIX_DATE2] = (uint16_t) (time.unixtime() & LOW_MASK);
-}
-*/
-
-
-
-// For 128x64 Pixel
-/*
-void DrawLedGraph(void) {
-	uint8_t yh = 40;   // Max height of a bar
-	uint8_t y = 0;
-	uint16_t yscale = 1024 / yh;
-	uint16_t reg;
-
-	screen.DrawLine(20, 63, 20, (63 - yh));
-	screen.DrawLine(18, 63, 127, 63);  //0 %
-	screen.Text(0, 56, "0");
-	screen.DrawLine(18, 43, 127, 43);  //50 %
-	screen.Text(0, 40, "50");
-	screen.DrawLine(18, 23, 127, 23);  //100 %
-	screen.Text(0, 20, "100");
-	screen.DrawLine(20, 63, 127, 63);
-	screen.DrawLine(127, 63, 127, (63 - 40));
-//*  display.fillRect(22, 30, 94, 31 , BLACK);
-	for (uint8_t i = LED_COLOR1; i < 19; i++) {
-		// scaling the 10Bit 1024 Value to y achse
-		reg = mb_reg[i];
-		y = reg / yscale;
-		//screen.DrawFilledRect(((i-LED_COLOR1)*6)+22, yh+(yh-y), 4, y );
-		screen.DrawFilledRect(((i - LED_COLOR1) * 6) + 26, 63 - y, 4, 63);
-	}
-
-}
-*/
-
 void drawInt(uint8_t x, uint8_t y, uint16_t value, uint8_t place, bool invers) {
 	char buffer[4];
 
@@ -414,144 +388,129 @@ void drawInt(uint8_t x, uint8_t y, uint16_t value, uint8_t place, bool invers) {
 	}
 
 }
-
+*/
 void DisplayStatus() {
-	char buffer[4];
+	char buffer[6];
 	// ICON STATUS BAR
 
-	if (ee_Config.MARELAB_MODUS == ACC_WLAN_MODBUS) {
-		screen.DrawXBM(112, 0, 16, 16, ICON_MODBUS);
-		screen.DrawXBM(95, 0, 16, 16, ICON_WLAN);
-	} else if (ee_Config.MARELAB_MODUS == ACC_STANDALONE) {
+	
+	if (ee_Config.MARELAB_MODUS == ACC_STANDALONE) {
 		screen.DrawXBM(112, 0, 16, 16, ICON_STANDALONE);
 	} else if (ee_Config.MARELAB_MODUS == ACC_MOD) {
 		screen.DrawXBM(112, 0, 16, 16, ICON_MODBUS);
-	} else if (ee_Config.MARELAB_MODUS == ACC_WLAN) {
-		screen.DrawXBM(112, 0, 16, 16, ICON_WLAN);
+	} 
+	
+	
+
+	// GLOBAL STATE OF OSMOSE PROCESS
+	//itoa(GlobalStateSensor, buffer, 10);
+	mb_reg[MOD_OSMOSE_STATE] = GlobalStateSensor;
+	//screen.Text(100, 5, buffer);
+		
+	
+   
+	// Display Sensor Status 
+	if (ee_Config.OSMOSE_MODE ==  OSMOSE_MODE_MANUEL){
+		screen.TextP(94, 56, T_OSMOSE_MANUEL, true);
+	}
+	else if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_AUTO){
+		screen.TextP(94, 56, T_OSMOSE_AUTO, true);
 	}
 
-	// Temperatur of Dimmer Hardware
-	itoa(GlobalStateSensor, buffer, 10);
-	screen.Text(60, 40, buffer);
-	screen.Text(1, 40, "State");
-
-	if (OSMOSE_MODE == OSMOSE_MODE_AUTO){
-		screen.Text(1, 5, "AUTO");
-	}
-
-	if (AQUA.S_LAST_STATE && AQUA.S_OK){
+	if (AQUA.S_STATE){
 		screen.Text(1, 56, "A-1");
-	}else if (!AQUA.S_LAST_STATE && AQUA.S_OK){
+	}else{
 		screen.Text(1, 56, "A-0");
-	}else{
-		screen.Text(1, 56, "A-?");
 	}
 	
-	if (FWTANK_BOT.S_LAST_STATE && FWTANK_BOT.S_OK){		
+	if (FWTANK_BOT.S_STATE){		
 		screen.Text(30, 56, "B-1");
-	}else if (!FWTANK_BOT.S_LAST_STATE && FWTANK_BOT.S_OK){	
+	}else {	
 		screen.Text(30, 56, "B-0");
-	}else{
-		screen.Text(30, 56, "B-?");
 	}
 	
-	if (FWTANK_TOP.S_LAST_STATE && FWTANK_TOP.S_OK){
+	if (FWTANK_TOP.S_STATE){
 		screen.Text(60, 56, "T-1");
-	}else if (!FWTANK_TOP.S_LAST_STATE && FWTANK_TOP.S_OK){
-		screen.Text(60, 56, "T-0");
-		//MODE OSMOSE
 	}else{
-		screen.Text(60, 56, "T-?");
+		screen.Text(60, 56, "T-0");
 	}
 	
-		 /* Logic Table to control Pumps & Vents												*/
-		 /* ---------------------------------------------------------------------------------*/
-		 /*					SOHigh	SOLow	SAQUA											*/
-		 /*0 Osmose Empty	  0		  0			0   PumpOsmose VentFresh ON PumpRefill OFF	*/
-		 /*1 Osmose Empty	  0	  	  0			1   PumpOsmose VentFresh ON PumpRefill OFF	*/
-		 /*2 Osmose OK		  0		  1			0   PumpOsmose VentFresh ON PumpRefill ON	*/
-		 /*3 Osmose OK		  0		  1			1	PumpOsmose VentFresh OFF PumpRefill ON	*/
-		 /*4 ERROR			  1		  0			0   All OFF									*/
-		 /*5 ERROR		      1		  0			1   All OFF									*/
-		 /*6 Osmose OK		  1		  1			0   PumpOsmose VentFresh OFF PumpRefill ON	*/
-		 /*7 Osmose OK		  1		  1			1   PumpOsmose VentFresh OFF PumpRefill OFF	*/
-	
-	//if (AQUA.S_OK && FWTANK_TOP.S_OK & FWTANK_BOT.S_OK){
-	//}else{
-	//	GlobalStateSensor = GlobalStateSensorOld;
-	//}
-	
-	if (OSMOSE_MODE == OSMOSE_MODE_AUTO){
-		if (GlobalStateSensor==0)		{ osmose_active = TRUE;pump_active=FALSE;}		// PumpOsmose VentFresh ON PumpRefill OFF
-		else if (GlobalStateSensor==1)	{ osmose_active = TRUE;pump_active=TRUE;}		// PumpOsmose VentFresh OFF PumpRefill OFF
-		else if (GlobalStateSensor==2 && GlobalStateSensorOld != GlobalStateSensor )	// PumpOsmose VentFresh ON PumpRefill ON
-		{
-			if (GlobalStateSensorOld==6 || GlobalStateSensorOld == 7){ // wenn von voll nach leer dann nicht aktivieren
-				osmose_active	= FALSE;
-				pump_active		= FALSE;
-			}
-			else{
-				osmose_active	= TRUE;
-				pump_active		= FALSE;
-			}
-		}		
-		
-		else if (GlobalStateSensor==3 && GlobalStateSensorOld != GlobalStateSensor)	// PumpOsomse VentFresh OFF PumpRefill ON
-		{
-			if (GlobalStateSensorOld==6 || GlobalStateSensorOld == 7){ // wenn von voll nach leer dann nicht aktivieren
-				osmose_active = FALSE;
-				pump_active=FALSE;
-			}
-			else{
-				osmose_active = TRUE;
-				pump_active=FALSE;
-			}
-		}		
-		else if (GlobalStateSensor==4)	{screen.Text(1, 18, "ERROR Sensor");  osmose_active = FALSE;pump_active=FALSE;}		// All OFF ERROR
-		else if (GlobalStateSensor==5)	{screen.Text(1, 18, "ERROR Sensor");  osmose_active = FALSE;pump_active=FALSE;}		// All OFF ERROR
-		else if (GlobalStateSensor==6)	{osmose_active = FALSE;pump_active=TRUE;}		// PumpOsmose VentFresh OFF PumpRefill ON
-		else if (GlobalStateSensor==7)	{osmose_active = FALSE;pump_active=FALSE; }	// PumpOsmose VentFresh OFF PumpRefill OFF
-		GlobalStateSensorOld = GlobalStateSensor;
-	}
-	
-	if (osmose_active ){
-		screen.Text(1, 18, "Osmose-On");
-	}else
-	{
-		screen.Text(1, 18, "Osmose-Off");
-	}
-	if (pump_active ){
-		screen.Text(65, 18, "Pump-On");
-	}else
-	{
-		screen.Text(65, 18, "Pump-Off");
-	}
-
+	// EC VALUE DISPLAY
+	screen.setFontGross();
+	if ((adcAVG > 65000) || (adcAVG < 25) )
+		adcAVG = 0;
+	ltoa(adcAVG, buffer, 10);
+	screen.Text(60, 18, buffer);
+	screen.setFontKLein();
+	screen.Text(112, 24, "uS");
+	screen.DrawLine(58, 16, 58, 35);
+	screen.DrawLine(58, 35, 128, 35);
  
-    uint16_t run = OSMOSE_RUN_TIME/1000;
-	ltoa(run, buffer, 10);
-	screen.Text(1, 27, "OS");
-	screen.Text(20, 27, buffer);
+	// STATUS ICONS OF OSMOSE
+	if (ERROR_STATE != 0){
+		if (ERROR_STATE==1)
+			screen.TextP(1, 2, T_ERROR,TRUE);
+		if (ERROR_STATE==2)
+			screen.TextP(1, 2, T_ERROR_TIME,TRUE);	
+	//if(!FWTANK_BOT.S_STATE && FWTANK_TOP.S_STATE){
+	}else{
+		if (osmose_active && !CleanOn){
+			screen.TextP(1, 2, T_OSMOSE,TRUE);
+			screen.DrawXBM(94, 0, 16, 16, ICON_WATERON);
+			uint16_t run = OSMOSE_RUN_TIME/1000/60;
+			ltoa(run, buffer, 10);
+			screen.TextP(1, 18, T_MODERUNMIN,FALSE);
+			screen.Text(1, 28, buffer);
+			screen.Text(24, 28, "/");
+			ltoa(ee_Config.OSMOSE_MAX_CYCLE_TIME, buffer, 10);
+			screen.Text(32, 28, buffer);
+		}
+		else if (osmose_active && CleanOn){
+			screen.DrawXBM(76, 0, 16, 16, ICON_CLEAN);
+			screen.DrawXBM(94, 0, 16, 16, ICON_WATERON);
+			screen.TextP(1, 2, T_CLEAN,TRUE);
+			// Mode Runtime COUNTDOWN
+			unsigned long run =  (millis()-CLEAN_START_TIME ) / 1000;
+			ltoa(run, buffer, 10);
+			screen.TextP(1, 18, T_MODERUNSEC,FALSE);
+			screen.Text(1, 28, buffer);
+			screen.Text(24, 28, "/");
+			ltoa(ee_Config.OSMOSE_CLEAN_DURATION, buffer, 10);
+			screen.Text(32, 28, buffer);
+		}
+		if (pump_active){
+			screen.DrawXBM(58, 0, 16, 16, ICON_REFILL);
+			screen.TextP(1, 2, T_REFILL,TRUE);
+			// Mode Runtime COUNTDOWN
+			
+			uint16_t run = REFILL_RUN_TIME/1000;
+			ltoa(run, buffer, 10);
+			screen.TextP(1, 40, T_REFILLRUNSEC,FALSE);
+			screen.Text(74, 40, buffer);
+			screen.Text(94, 40, "/");
+			ltoa(ee_Config.OSMOSE_MAX_REFILL_TANK, buffer, 10);
+			screen.Text(102, 40, buffer);
+			
+		}
+		if(!pump_active && !CleanOn && !osmose_active){
+			screen.TextP(1, 2, T_IDLE,TRUE);
+		}
+	}
 	
-	if (CleanOn && osmose_active)
-		screen.Text(60, 27, "CLEAN");
-	else if (!CleanOn && osmose_active)
-		screen.Text(60, 27, "OSMOSE");
-	else
-		screen.Text(60, 27, "IDLE");
-		
 	screen.DrawLine(0, 16, 128, 16);
 	screen.DrawLine(0, 54, 128, 54);
 	
 	// RUNTIME
+	/*
 	unsigned long runtime = millis()/1000;
 	ltoa(runtime, buffer, 10);
 	screen.Text(70, 40, "S");
 	screen.Text(75, 40, buffer);
-	// Graph of 16 LEDs
-	//DrawLedGraph();
 	screen.Show();
+	*/
 }
+
+
 
 void draw_Menu() {
 	char buffer[4];
@@ -560,41 +519,48 @@ void draw_Menu() {
 
 	itoa(MENU_POS, buffer, 10);
 	screen.Text(85, 5, buffer);
+	
 
 	if (MENU_POS == 1) {
-		screen.TextP(8, 20, T_MODBUS_ADRESS, true);
-	} else {
-		screen.TextP(8, 20, T_MODBUS_ADRESS, false);
+		screen.TextP(8, 20, T_CLEANING, true);
+		} else {
+		screen.TextP(8, 20, T_CLEANING, false);
 	}
 
 	if (MENU_POS == 2) {
-		screen.TextP(8, 30, T_TIME_SETUP, true);
-	} else {
-		screen.TextP(8, 30, T_TIME_SETUP, false);
+		screen.TextP(60, 20, T_SAFETY, true);
+		} else {
+		screen.TextP(60, 20, T_SAFETY, false);
 	}
 
 	if (MENU_POS == 3) {
-		screen.TextP(8, 40, T_IP_ADRESS, true);
+		screen.TextP(8, 30, T_BOUNCE_SETUP, true);
 	} else {
-		screen.TextP(8, 40, T_IP_ADRESS, false);
+		screen.TextP(8, 30, T_BOUNCE_SETUP, false);
 	}
-
+	
 	if (MENU_POS == 4) {
-		screen.TextP(60, 20, T_DIMM_SETUP, true);
-	} else {
-		screen.TextP(60, 20, T_DIMM_SETUP, false);
+		screen.TextP(60, 30, T_MODBUS_ADRESS, true);
+		} else {
+		screen.TextP(60, 30, T_MODBUS_ADRESS, false);
 	}
-
+	
 	if (MENU_POS == 5) {
-		screen.TextP(60, 30, T_INFO_SETUP, true);
+		screen.TextP(8, 40, T_OSMOSE_MODE, true);
 	} else {
-		screen.TextP(60, 30, T_INFO_SETUP, false);
+		screen.TextP(8, 40, T_OSMOSE_MODE, false);
 	}
 
 	if (MENU_POS == 6) {
-		screen.TextP(8, 50, T_BACK, true);
+		screen.TextP(60, 40, T_INFO_SETUP, true);
 	} else {
-		screen.TextP(8, 50, T_BACK, false);
+		screen.TextP(60, 40, T_INFO_SETUP, false);
+	}
+
+	if (MENU_POS == 7) {
+		screen.TextP(1, 55, T_BACK, true);
+	} else {
+		screen.TextP(1, 55, T_BACK, false);
 	}
 }
 
@@ -646,68 +612,163 @@ void drawModbusSetup() {
 	}
 }
 
-
-
-void drawTime(uint8_t xt1, uint8_t yt1, uint8_t menu, unsigned long hh,unsigned long mm,unsigned long ss,bool hhmm) {
-	if (MENU_POS == menu) {
-		drawInt(xt1, yt1, hh, 2, true);
-	} else {
-		drawInt(xt1, yt1, hh, 2, false);
-	}
-	screen.Text(xt1 + 12, yt1, ":");
-	if (MENU_POS == (menu + 1)) {
-		drawInt(xt1 + 18, yt1, mm, 2, true);
-	} else {
-		drawInt(xt1 + 18, yt1, mm, 2, false);
-	}
-	if (hhmm) {
-		screen.Text(xt1+30, yt1, ":");
-
-		if (MENU_POS == 3) {
-			drawInt(xt1+36, yt1, ss, 2, true);
-		} else {
-			drawInt(xt1+36, yt1, ss, 2, false);
-		}
-	}
-}
-
-/*
-void drawTimeSetup() {
-
-	uint8_t hh, mm, ss;
-
+void drawDBounce(){
+	char buffer[4];
 	screen.TextP(0, 5, T_SETUP, false);
-	screen.TextP(50, 5, T_TIME_SETUP, false);
+	screen.TextP(50, 5, T_BOUNCE_SETUP, false);
 	screen.DrawLine(0, 14, 128, 14);
-
-	TimeSpan timeObj(tempTime);
-	hh = timeObj.hours();
-	mm = timeObj.minutes();
-	ss = timeObj.seconds();
-
-	// Get the ModbusID
-	drawTime(30, 30, 1, hh, mm,ss,true);
-
-
+	
+	if (MENU_POS == 1)
+		screen.TextP(0, 18, T_SAQUA, true);
+	else
+		screen.TextP(0, 18, T_SAQUA, false);
+	ltoa((AQUA.S_DBOUNCE/1000), buffer, 10);
+	screen.Text(90, 18, buffer);
+	
+	if (MENU_POS == 2)
+		screen.TextP(0, 30, T_STOP, true);
+	else
+		screen.TextP(0, 30, T_STOP, false);
+	ltoa((FWTANK_TOP.S_DBOUNCE/1000), buffer, 10);
+	screen.Text(90, 30, buffer);
+	
+	if (MENU_POS == 3)
+		screen.TextP(0, 42, T_SBOT, true);
+	else
+		screen.TextP(0, 42, T_SBOT, false);
+	ltoa((FWTANK_BOT.S_DBOUNCE/1000), buffer, 10);
+	screen.Text(90, 42, buffer);
+	
+	screen.DrawLine(0, 54, 128, 54);
 
 	if (MENU_POS == 4) {
-		screen.TextP(8, 50, T_BACK, true);
+		screen.TextP(1, 56, T_BACK, true);
 	} else {
-		screen.TextP(8, 50, T_BACK, false);
+		screen.TextP(1, 56, T_BACK, false);
 	}
 
 	if (MENU_POS == 5) {
-		screen.TextP(100, 50, T_SAVE, true);
+		screen.TextP(100, 56, T_SAVE, true);
 	} else {
-		screen.TextP(100, 50, T_SAVE, false);
+		screen.TextP(100, 56, T_SAVE, false);	
 	}
 }
-*/
 
-/*****************************************************************/
-/* Customize Dimmer                                              */
-/*****************************************************************/
+void drawSafety(){
+	char buffer[4];
+	screen.TextP(0, 5, T_SETUP, false);
+	screen.TextP(50, 5, T_SAFETY, false);
+	screen.DrawLine(0, 14, 128, 14);
+	
+	if (MENU_POS == 1)
+	screen.TextP(0, 18, T_SAFETY_CYLE , true);
+	else
+	screen.TextP(0, 18, T_SAFETY_CYLE, false);
+	
+	ltoa(ee_Config.OSMOSE_MAX_CYCLE_TIME, buffer, 10);
+	screen.Text(90, 18, buffer);
+	
+	if (MENU_POS == 2)
+	screen.TextP(0, 30, T_SAFETY_REFILL, true);
+	else
+	screen.TextP(0, 30, T_SAFETY_REFILL, false);
+	
+	ltoa(ee_Config.OSMOSE_MAX_REFILL_TANK, buffer, 10);
+	screen.Text(90, 30, buffer);
+	
+	if (MENU_POS == 3) {
+		screen.TextP(1, 56, T_BACK, true);
+		} else {
+		screen.TextP(1, 56, T_BACK, false);
+	}
 
+	if (MENU_POS == 4) {
+		screen.TextP(100, 56, T_SAVE, true);
+		} else {
+		screen.TextP(100, 56, T_SAVE, false);
+	}
+}
+
+void drawCleaning(){
+	char buffer[4];
+	screen.TextP(0, 5, T_SETUP, false);
+	screen.TextP(50, 5, T_CLEANING, false);
+	screen.DrawLine(0, 14, 128, 14);
+		
+	if (MENU_POS == 1)
+		screen.TextP(0, 18, T_CLEAN_DURA, true);
+	else
+		screen.TextP(0, 18, T_CLEAN_DURA, false);
+	
+	ltoa(ee_Config.OSMOSE_CLEAN_DURATION, buffer, 10);
+	screen.Text(90, 18, buffer);
+	
+	if (MENU_POS == 2)
+		screen.TextP(0, 30, T_CLEAN_REPE, true);
+	else
+		screen.TextP(0, 30, T_CLEAN_REPE, false);
+	
+	ltoa(ee_Config.OSMOSE_CLEAN_REPEAT, buffer, 10);
+	screen.Text(90, 30, buffer);
+	
+	if (MENU_POS == 3) {
+		screen.TextP(1, 56, T_BACK, true);
+		} else {
+		screen.TextP(1, 56, T_BACK, false);
+	}
+
+	if (MENU_POS == 4) {
+		screen.TextP(100, 56, T_SAVE, true);
+		} else {
+		screen.TextP(100, 56, T_SAVE, false);
+	}
+}
+
+
+void drawMode(){
+	//char buffer[4];
+	screen.TextP(0, 5, T_SETUP, false);
+	screen.TextP(50, 5, T_OSMOSE_MODE, false);
+	screen.DrawLine(0, 14, 128, 14);
+	
+	if (MENU_POS == 1)
+		screen.TextP(0, 18, T_OSMOSE_MANUEL, true);
+	else
+		screen.TextP(0, 18, T_OSMOSE_MANUEL, false);
+		
+	if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_MANUEL) {
+		screen.DrawRect(100, 18, 10, 10);
+		screen.DrawFilledRect(102, 20, 6, 6);
+		} else {
+		screen.DrawRect(100, 18, 10, 10);
+	}
+	
+	
+	
+	if (MENU_POS == 2)
+		screen.TextP(0, 30, T_OSMOSE_AUTO, true);
+	else
+		screen.TextP(0, 30, T_OSMOSE_AUTO, false);
+	
+	if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_AUTO) {
+		screen.DrawRect(100, 30, 10, 10);
+		screen.DrawFilledRect(102, 32, 6, 6);
+		} else {
+		screen.DrawRect(100, 30, 10, 10);
+	}
+	
+	if (MENU_POS == 3) {
+		screen.TextP(1, 56, T_BACK, true);
+		} else {
+		screen.TextP(1, 56, T_BACK, false);
+	}
+
+	if (MENU_POS == 4) {
+		screen.TextP(100, 56, T_SAVE, true);
+		} else {
+		screen.TextP(100, 56, T_SAVE, false);
+	}
+}
 
 void drawInfo() {
 	char buffer[15];
@@ -750,19 +811,11 @@ void drawInfo() {
 	 * 04 NETWORK WLAN
 	 */
 
-	if (ee_Config.MARELAB_MODUS == ACC_WLAN_MODBUS) {
-		screen.DrawXBM(108, 20, 16, 16, ICON_MODBUS);
-		screen.DrawXBM(108, 40, 16, 16, ICON_WLAN);
-	} else if (ee_Config.MARELAB_MODUS == ACC_STANDALONE) {
+	if (ee_Config.MARELAB_MODUS == ACC_STANDALONE) {
 		screen.DrawXBM(108, 20, 16, 16, ICON_STANDALONE);
-
 	} else if (ee_Config.MARELAB_MODUS == ACC_MOD) {
 		screen.DrawXBM(108, 20, 16, 16, ICON_MODBUS);
-	} else if (ee_Config.MARELAB_MODUS == ACC_WLAN) {
-		screen.DrawXBM(108, 20, 16, 16, ICON_WLAN);
-	} else if (ee_Config.MARELAB_MODUS > ACC_WLAN) { // Undifined ERROR no ACCESS MODE
-
-	}
+	} 
 
 	if (MENU_POS == 1) {
 		screen.TextP(8, 53, T_BACK, true);
@@ -771,39 +824,6 @@ void drawInfo() {
 	}
 }
 
-
-
-void drawKeyboard() {
-	uint8_t x, y;
-	screen.TextP(0, 5, T_SETUP, false);
-	screen.TextP(50, 5, T_IP_ADRESS, false);
-	screen.DrawLine(0, 14, 128, 14);
-
-	screen.TextP(0, 20, ASCII_1, false);
-	screen.TextP(0, 30, ASCII_2, false);
-	screen.TextP(0, 40, ASCII_3, false);
-	screen.TextP(0, 50, ASCII_4, false);
-
-	x = KEYBOARD_POS_X * 6;
-	y = KEYBOARD_POS_Y * 10;
-	screen.DrawLine(x, y + 20, x + 6, y + 20);
-	screen.DrawLine(x, y + 29, x + 6, y + 29);
-}
-void drawKeyboard2() {
-	uint8_t x, y;
-	screen.TextP(0, 5, T_SETUP, false);
-	screen.TextP(50, 5, T_IP_ADRESS, false);
-	screen.DrawLine(0, 14, 128, 14);
-
-	screen.TextP(0, 20, ASCII_1_2, false);
-	screen.TextP(0, 30, ASCII_2_2, false);
-
-	x = KEYBOARD_POS_X * 6;
-	y = KEYBOARD_POS_Y * 10;
-	screen.DrawLine(x, y + 20, x + 6, y + 20);
-	screen.DrawLine(x, y + 29, x + 6, y + 29);
-
-}
 
 void draw(void) {
 	screen.firstPage();
@@ -830,29 +850,27 @@ void draw(void) {
 			drawModbusSetup();
 			break;
 		}
-		case DS_TIME_SETUP: {	// Time Setup
-			//drawTimeSetup();
-			break;
-		}
-		case DS_IP_SETUP: {	// Modbus Change	
-			break;
-		}
-		case DS_DIMM: {	// IP Setup
+		case DS_DBOUNCE: {	// DBOUNCE CONFIG
+			drawDBounce();
 			break;
 		}
 		case DS_INFO: {	// IP Setup
 			drawInfo();
 			break;
 		}
+		case DS_SAFETY: {	// Safety Setup
+			drawSafety();
+			break;
+		}
+		case DS_CLEANING: {	// Cleaning Setup
+			drawCleaning();
+			break;
+		}
+		case DS_MODE: {	// Mode Setup
+			drawMode();
+			break;
+		}
 		case DS_SCREENSAVER: {
-			break;
-		}
-		case DS_KEYBOARD: {
-			drawKeyboard();
-			break;
-		}
-		case DS_KEYBOARD2: {
-			drawKeyboard2();
 			break;
 		}
 		}
@@ -877,43 +895,12 @@ void checkActiveButtons() {
 	//if((lastButtonState!=tmpButtonState) && (tmpButtonState == BT_NULL)){
 	if ((lastButtonState != BT_NULL) && (tmpButtonState != lastButtonState)) {
 		buttonState = lastButtonState;
+		SCREEN_SAVER_TIME = millis();
 	}
 
 	// save the reading.  Next time through the loop,
 	// it'll be the lastButtonState:
 	lastButtonState = tmpButtonState;
-}
-
-void SetTimeOnScreen(uint8_t menu, unsigned long &hh, unsigned long &mm) {
-	// houre ID ++
-	if ((buttonState == BT_RIGHT) && (MENU_POS == menu)) {
-		if ((hh >= 0) && (hh <= 23))
-			hh++;
-		else
-			hh = 0;
-	}
-	// houre ID --
-	else if ((buttonState == BT_LEFT) && (MENU_POS == menu)) {
-		if ((hh >= 1) && (hh <= 23))
-			hh--;
-		else
-			hh = 23;
-	}
-
-	// minute ID --
-	if ((buttonState == BT_RIGHT) && (MENU_POS == (menu + 1))) { // Modbus ID minus
-		if ((mm >= 0) && (mm <= 58))
-			mm++;
-		else
-			mm = 0;
-	}
-	// minute ID ++
-	else if ((buttonState == BT_LEFT) && (MENU_POS == (menu + 1))) { // Modbus ID plus
-		if ((mm >= 1) && (mm <= 59))
-			mm--;
-		else
-			mm = 59;
-	}
 }
 
 void calcMenu(int MENU_SIZE) {
@@ -949,11 +936,16 @@ void calcMenu(int MENU_SIZE) {
  DS_BOOT=2,
  DS_MENU=3,
  DS_MODBUS_SETUP=4,
- DS_TIME_SETUP=5,
- DS_IP_SETUP=6                   */
+ DS_TIME_SETUP=5                */
 /*************************************************/
 void DoMenu() {
 	checkActiveButtons();     // Check if a button was pressed
+	
+	if (((millis()-SCREEN_SAVER_TIME)/1000) >= SCREEN_SAVER_TIMEOUT){
+			WhichDisplay = DS_SCREENSAVER;
+			MENU_POS = 1;
+	}
+	
 	if (buttonState != BT_NULL) {
 
 		if (WhichDisplay == DS_SCREENSAVER) {
@@ -973,19 +965,21 @@ void DoMenu() {
 			else if (WhichDisplay == DS_MENU) {
 				calcMenu(MENU_SIZE_SETUP);
 				if (buttonState == BT_ENTER) { // One of the setup menus selected
-					if (MENU_POS == 1) {
+					if (MENU_POS == 4) {
 						WhichDisplay = DS_MODBUS_SETUP;		// ModBus ID change
 						MODBUS_TEMP_ID = ee_Config.MODBUS_ID;
-					} else if (MENU_POS == 2) {
-						WhichDisplay = DS_TIME_SETUP;		// Time Setup
-					} else if (MENU_POS == 3) {
-						WhichDisplay = DS_IP_SETUP;			// IP Setup Selected
-					} else if (MENU_POS == 6) {				// Back to mainmenu
+					} else if (MENU_POS == 3) {					// DIMM setup
+						WhichDisplay = DS_DBOUNCE;
+					} else if (MENU_POS == 7) {				// Back to mainmenu
 						WhichDisplay = DS_MAIN;
-					} else if (MENU_POS == 4) {					// DIMM setup
-						WhichDisplay = DS_DIMM;
 					} else if (MENU_POS == 5) {						// Info
+						WhichDisplay = DS_MODE;
+					} else if (MENU_POS == 6) {						// Info
 						WhichDisplay = DS_INFO;
+					}else if (MENU_POS == 2) {					// DIMM setup
+						WhichDisplay = DS_SAFETY;
+					} else if (MENU_POS == 1) {					// DIMM setup
+						WhichDisplay = DS_CLEANING;
 					}
 					MENU_POS = 1;
 				}
@@ -1049,345 +1043,199 @@ void DoMenu() {
 						MODBUS_TEMP_ID = 254;
 				}
 			}
-			/***********************************************************/
-			/* Menu Section for TIME Setup                             */
-			/***********************************************************/
-			// Time DOWN
-			else if (WhichDisplay == DS_TIME_SETUP) {
-				unsigned long hh, mm, ss;
-				//TimeSpan timeObj(tempTime);
-				//hh = timeObj.hours();
-				//mm = timeObj.minutes();
-				//ss = timeObj.seconds();
 
-				calcMenu(MENU_SIZE_TIME);
-				//SetTimeOnScreen(1, hh, mm);
+			/***********************************************************/
+			/* Menu Section for DBOUNCE Setup                          */
+			/***********************************************************/
+			else if (WhichDisplay == DS_DBOUNCE) {
+				//unsigned long hh, mm;
 
-				// sec ID --
-				if ((buttonState == BT_RIGHT) && (MENU_POS == 3)) { // Modbus ID minus
-					if (ss >= 0 && ss < 60)
-						ss++;
+				calcMenu(MENU_SIZE_DBOUNCE);
+
+				if ((MENU_POS == 1) && (buttonState == BT_LEFT)) {
+					if (AQUA.S_DBOUNCE >= 1000)
+						AQUA.S_DBOUNCE = AQUA.S_DBOUNCE-1000;
 					else
-						ss = 0;
-				}
-				// sec ID ++
-				else if ((buttonState == BT_LEFT) && (MENU_POS == 3)) { // Modbus ID plus
-					if (ss >= 1 && ss <= 59)
-						ss--;
+						AQUA.S_DBOUNCE = 32000;
+				} else if ((MENU_POS == 1) && (buttonState == BT_RIGHT)) {
+					if (AQUA.S_DBOUNCE  <= 32000)
+						AQUA.S_DBOUNCE  = AQUA.S_DBOUNCE + 1000;
 					else
-						ss = 59;
+						AQUA.S_DBOUNCE  = 0;
 				}
 
-				//tempTime = (hh * 3600) + (mm * 60) + ss;
+				if ((MENU_POS == 2) && (buttonState == BT_LEFT)) {
+					if (FWTANK_TOP.S_DBOUNCE >= 1000)
+						FWTANK_TOP.S_DBOUNCE = FWTANK_TOP.S_DBOUNCE-1000;
+					else
+						FWTANK_TOP.S_DBOUNCE = 32000;
+					} 
+				else if ((MENU_POS == 2) && (buttonState == BT_RIGHT)) {
+					if (FWTANK_TOP.S_DBOUNCE <= 32000)
+						FWTANK_TOP.S_DBOUNCE = FWTANK_TOP.S_DBOUNCE + 1000;
+					else
+						FWTANK_TOP.S_DBOUNCE = 0;
+				}
+				
+				if ((MENU_POS == 3) && (buttonState == BT_LEFT)) {
+					if (FWTANK_BOT.S_DBOUNCE >= 1000)
+						FWTANK_BOT.S_DBOUNCE = FWTANK_BOT.S_DBOUNCE-1000;
+					else
+						FWTANK_BOT.S_DBOUNCE = 32000;
+				}
+				else if ((MENU_POS == 3) && (buttonState == BT_RIGHT)) {
+					if (FWTANK_BOT.S_DBOUNCE <= 32000)
+						FWTANK_BOT.S_DBOUNCE = FWTANK_BOT.S_DBOUNCE + 1000;
+					else
+						FWTANK_BOT.S_DBOUNCE = 0;
+				}
 
-				// TIME BACK
+				
 				if ((buttonState == BT_ENTER) && (MENU_POS == 4)) { // Back to SetupMenu
 					MENU_POS = 1;
 					WhichDisplay = DS_MENU;
 				}
-				// TIME SAVE
-				else if ((buttonState == BT_ENTER) && (MENU_POS == 5)) { // Save Time
-					//DateTime now(2016, 12, 1,hh, mm, ss);
-					//rtc.adjust(now);
+				
+				else if ((buttonState == BT_ENTER) && (MENU_POS == 5)) { // Save Adr Modbus
 					MENU_POS = 1;
+					ee_Config.OSMOSE_DBOUNCE_AQUA	= AQUA.S_DBOUNCE;
+					ee_Config.OSMOSE_DBOUNCE_TOP	= FWTANK_TOP.S_DBOUNCE;
+					ee_Config.OSMOSE_DBOUNCE_BOTTOM	= FWTANK_BOT.S_DBOUNCE;
+					WriteMarelabConfig();	
 					WhichDisplay = DS_MENU;
 				}
 			}
 			/***********************************************************/
 
 			/***********************************************************/
-			/* Menu Section for IP Setup                             */
+			/* Menu Section for CLEANING Setup                          */
 			/***********************************************************/
-			// IP DOWN
-			else if (WhichDisplay == DS_IP_SETUP) {
-				//calcMenu(MENU_SIZE_IP);
-
-				if (buttonState == BT_DOWN) {
-					if (MENU_POS >= IP_POS_ACTIVE) {
-						MENU_POS++;
-					} else if (MENU_POS >= IP_POS_SAVE) {
-						MENU_POS = IP_POS_ACTIVE;
-					}
-				}
-
-				else if (buttonState == BT_UP) {
-					if (MENU_POS <= IP_POS_ACTIVE) {
-						MENU_POS = IP_POS_SAVE;
-					} else if (MENU_POS > IP_POS_ACTIVE) {
-						MENU_POS--;
-					}
-				}
-
-				// Activate
-				if ((buttonState == BT_RIGHT) && (MENU_POS == IP_POS_ACTIVE)) {
-					if (ee_Config.MARELAB_MODUS == ACC_STANDALONE) {
-						ee_Config.MARELAB_MODUS = ACC_WLAN;
-					} else if (ee_Config.MARELAB_MODUS == ACC_MOD) {
-						ee_Config.MARELAB_MODUS = ACC_WLAN_MODBUS;
-					}
-				} else if ((buttonState == BT_LEFT)
-						&& (MENU_POS == IP_POS_ACTIVE)) {
-					if (ee_Config.MARELAB_MODUS == ACC_WLAN) {
-						ee_Config.MARELAB_MODUS = ACC_STANDALONE;
-					} else if (ee_Config.MARELAB_MODUS == ACC_WLAN_MODBUS) {
-						ee_Config.MARELAB_MODUS = ACC_MOD;
-					} else if (ee_Config.MARELAB_MODUS > ACC_WLAN) {
-						ee_Config.MARELAB_MODUS = ACC_STANDALONE;
-					}
-				}
-
-				else if ((buttonState == BT_ENTER)
-						&& ((MENU_POS == IP_POS_SSID)
-								|| (MENU_POS == IP_POS_WPA))) {
-					WhichDisplay = DS_KEYBOARD;
-					KEYBOARD_POS_X = 0;
-					KEYBOARD_POS_Y = 0;
-				}
-
-				// SSID KEY
-				else if ((buttonState == BT_LEFT)
-						&& ((MENU_POS == IP_POS_SSID)
-								|| (MENU_POS == IP_POS_WPA))) {
-					if (CURSOR <= 0)
-						CURSOR = 18;
-					else
-						CURSOR--;
-				} else if ((buttonState == BT_RIGHT)
-						&& ((MENU_POS == IP_POS_SSID)
-								|| (MENU_POS == IP_POS_WPA))) {
-					if (CURSOR <= 17)
-						CURSOR++;
-					else
-						CURSOR = 0;
-				}
-
-				// IP BACK
-				else if ((buttonState == BT_ENTER)
-						&& (MENU_POS == IP_POS_BACK)) { // Back to SetupMenu
-					MENU_POS = 1;
-					WhichDisplay = DS_MENU;
-				}
-				// IP SAVE
-				else if ((buttonState == BT_ENTER)
-						&& (MENU_POS == IP_POS_SAVE)) { // Save Adr Modbus
-					WriteMarelabConfig();
-					MENU_POS = 1;
-					WhichDisplay = DS_MENU;
-				}
-			}
-
-			/***********************************************************/
-			/* Menu Section for KeyBoard1                              */
-			/***********************************************************/
-			else if (WhichDisplay == DS_KEYBOARD) {
-				if (buttonState == BT_DOWN) {
-					if (KEYBOARD_POS_Y < 3) {
-						KEYBOARD_POS_Y++;
-					} else {
-						KEYBOARD_POS_Y = 0;
-					}
-				} else if (buttonState == BT_UP) {
-					if (KEYBOARD_POS_Y >= 1) {
-						KEYBOARD_POS_Y--;
-					} else {
-						KEYBOARD_POS_Y = 3;
-					}
-				} else if (buttonState == BT_LEFT) {
-					if (KEYBOARD_POS_X >= 1) {
-						KEYBOARD_POS_X--;
-					} else {
-						KEYBOARD_POS_X = 17;
-					}
-
-				} else if (buttonState == BT_RIGHT) {
-					if (KEYBOARD_POS_X < 16) {
-						KEYBOARD_POS_X++;
-					} else {
-						KEYBOARD_POS_X = 0;
-					}
-				} else if ((buttonState == BT_ENTER) && (KEYBOARD_POS_Y == 3)
-						&& (KEYBOARD_POS_X >= 14)) {
-					WhichDisplay = DS_KEYBOARD2;
-					KEYBOARD_POS_Y = 0;
-					KEYBOARD_POS_X = 0;
-				} else if ((buttonState == BT_ENTER)
-						&& (MENU_POS == IP_POS_SSID)) {
-					if (KEYBOARD_POS_Y == 0) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_1[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 1) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_2[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 2) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_3[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 3) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_4[KEYBOARD_POS_X]));
-					}
-					WhichDisplay = DS_IP_SETUP;
-				} else if ((buttonState == BT_ENTER)
-						&& (MENU_POS == IP_POS_WPA)) {
-					if (KEYBOARD_POS_Y == 0) {
-						ee_Config.tempWPA[CURSOR] = pgm_read_byte(
-								&(ASCII_1[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 1) {
-						ee_Config.tempWPA[CURSOR] = pgm_read_byte(
-								&(ASCII_2[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 2) {
-						ee_Config.tempWPA[CURSOR] = pgm_read_byte(
-								&(ASCII_3[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 3) {
-						ee_Config.tempWPA[CURSOR] = pgm_read_byte(
-								&(ASCII_4[KEYBOARD_POS_X]));
-					}
-					WhichDisplay = DS_IP_SETUP;
-				}
-			}
-			/***********************************************************/
-			/* Menu Section for KeyBoard2                              */
-			/***********************************************************/
-			else if (WhichDisplay == DS_KEYBOARD2) {
-				if (buttonState == BT_DOWN) {
-					if (KEYBOARD_POS_Y < 3) {
-						KEYBOARD_POS_Y++;
-					} else {
-						KEYBOARD_POS_Y = 0;
-					}
-				} else if (buttonState == BT_UP) {
-					if (KEYBOARD_POS_Y >= 1) {
-						KEYBOARD_POS_Y--;
-					} else {
-						KEYBOARD_POS_Y = 3;
-					}
-				} else if (buttonState == BT_LEFT) {
-					if (KEYBOARD_POS_X >= 1) {
-						KEYBOARD_POS_X--;
-					} else {
-						KEYBOARD_POS_X = 17;
-					}
-
-				} else if (buttonState == BT_RIGHT) {
-					if (KEYBOARD_POS_X < 16) {
-						KEYBOARD_POS_X++;
-					} else {
-						KEYBOARD_POS_X = 0;
-					}
-				} else if ((buttonState == BT_ENTER) && (KEYBOARD_POS_Y == 1)
-						&& (KEYBOARD_POS_X >= 14)) {
-					WhichDisplay = DS_KEYBOARD;
-					KEYBOARD_POS_X = 0;
-					KEYBOARD_POS_Y = 0;
-				} else if (buttonState == BT_ENTER) {
-					if (KEYBOARD_POS_Y == 0) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_1_2[KEYBOARD_POS_X]));
-					} else if (KEYBOARD_POS_Y == 1) {
-						ee_Config.tempSSID[CURSOR] = pgm_read_byte(
-								&(ASCII_2_2[KEYBOARD_POS_X]));
-					}
-					if ((MENU_POS > 1) && (MENU_POS <= 19)) {
-						WhichDisplay = DS_IP_SETUP;
-					} else {
-						MENU_POS = 2;
-						WhichDisplay = DS_IP_SETUP;
-					}
-				}
-			}
-			/***********************************************************/
-
-			/***********************************************************/
-			/* Menu Section for Dimm Setup                             */
-			/***********************************************************/
-			// Dimm DOWN
-			else if (WhichDisplay == DS_DIMM) {
-				unsigned long hh, mm;
-
-				calcMenu(MENU_SIZE_DIMM);
-
+			else if (WhichDisplay == DS_CLEANING) {
+				calcMenu(MENU_SIZE_CLEANING);
+				// Max 10 min for a cleaning
 				if ((MENU_POS == 1) && (buttonState == BT_LEFT)) {
-					if (Channel > 0)
-						Channel--;
+					if (ee_Config.OSMOSE_CLEAN_DURATION >= 2)
+						ee_Config.OSMOSE_CLEAN_DURATION = ee_Config.OSMOSE_CLEAN_DURATION-1;
 					else
-						Channel = 15;
-					EEPROM_readAnything((Channel * 12), DimChannelSetup);
-				} else if ((MENU_POS == 1) && (buttonState == BT_RIGHT)) {
-					if (Channel < 15)
-						Channel++;
+						ee_Config.OSMOSE_CLEAN_DURATION = 300;
+					} 
+					else if ((MENU_POS == 1) && (buttonState == BT_RIGHT)) {
+						if (ee_Config.OSMOSE_CLEAN_DURATION  <= 300)
+							ee_Config.OSMOSE_CLEAN_DURATION = ee_Config.OSMOSE_CLEAN_DURATION + 1;
+						else
+							ee_Config.OSMOSE_CLEAN_DURATION  = 1;
+				}
+				// Repeat min 30 min max 240 min
+				if ((MENU_POS == 2) && (buttonState == BT_LEFT)) {
+					if (ee_Config.OSMOSE_CLEAN_REPEAT >= 31)
+						ee_Config.OSMOSE_CLEAN_REPEAT = ee_Config.OSMOSE_CLEAN_REPEAT-1;
 					else
-						Channel = 0;
-					EEPROM_readAnything((Channel * 12), DimChannelSetup);
+						ee_Config.OSMOSE_CLEAN_REPEAT = 240;
 				}
-
-				else if ((MENU_POS == 2) || (MENU_POS == 3)) {
-					//TimeSpan timeObj(60UL * DimChannelSetup.DIM_START_MIN);
-					//hh = timeObj.hours();
-					//mm = timeObj.minutes();
-					//SetTimeOnScreen(2, hh, mm);
-					//DimChannelSetup.DIM_START_MIN = (hh * 60) + mm;
-				}
-
-				else if ((MENU_POS == 4) || (MENU_POS == 5)) {
-					//TimeSpan timeObj(60UL * DimChannelSetup.DIM_START_MAX);
-					//hh = timeObj.hours();
-					//mm = timeObj.minutes();
-					//SetTimeOnScreen(4, hh, mm);
-					//DimChannelSetup.DIM_START_MAX = (hh * 60) + mm;
-				}
-
-				if ((MENU_POS == 6) && (buttonState == BT_LEFT)) {
-					if (DimChannelSetup.DIM_START_VALUE > 0)
-						DimChannelSetup.DIM_START_VALUE--;
+				else if ((MENU_POS == 2) && (buttonState == BT_RIGHT)) {
+					if (ee_Config.OSMOSE_CLEAN_REPEAT <= 240)
+						ee_Config.OSMOSE_CLEAN_REPEAT = ee_Config.OSMOSE_CLEAN_REPEAT + 1;
 					else
-						DimChannelSetup.DIM_START_VALUE = 100;
-				} else if ((MENU_POS == 6) && (buttonState == BT_RIGHT)) {
-					if (DimChannelSetup.DIM_START_VALUE < 100)
-						DimChannelSetup.DIM_START_VALUE++;
-					else
-						DimChannelSetup.DIM_START_VALUE = 0;
+						ee_Config.OSMOSE_CLEAN_REPEAT = 30;
 				}
-
-				else if ((MENU_POS == 7) || (MENU_POS == 8)) {
-					//TimeSpan timeObj(60UL * DimChannelSetup.DIM_END_MAX);
-					//hh = timeObj.hours();
-					//mm = timeObj.minutes();
-					//SetTimeOnScreen(7, hh, mm);
-					//DimChannelSetup.DIM_END_MAX = (hh * 60) + mm;
-				}
-
-				else if ((MENU_POS == 9) || (MENU_POS == 10)) {
-					//TimeSpan timeObj(60UL * DimChannelSetup.DIM_END_MIN);
-					//hh = timeObj.hours();
-					//mm = timeObj.minutes();
-					//SetTimeOnScreen(9, hh, mm);
-					//DimChannelSetup.DIM_END_MIN = (hh * 60) + mm;
-				}
-
-				if ((MENU_POS == 11) && (buttonState == BT_LEFT)) {
-					if (DimChannelSetup.DIM_END_VALUE > 0)
-						DimChannelSetup.DIM_END_VALUE--;
-					else
-						DimChannelSetup.DIM_END_VALUE = 100;
-				} else if ((MENU_POS == 11) && (buttonState == BT_RIGHT)) {
-					if (DimChannelSetup.DIM_END_VALUE < 100)
-						DimChannelSetup.DIM_END_VALUE++;
-					else
-						DimChannelSetup.DIM_END_VALUE = 0;
-				}
-
+				
 				// Dimm BACK
-				if ((buttonState == BT_ENTER) && (MENU_POS == 12)) { // Back to SetupMenu
+				if ((buttonState == BT_ENTER) && (MENU_POS == 3)) { // Back to SetupMenu
 					MENU_POS = 1;
 					WhichDisplay = DS_MENU;
 				}
 				// Dimm SAVE
-				else if ((buttonState == BT_ENTER) && (MENU_POS == 13)) { // Save Adr Modbus
+				else if ((buttonState == BT_ENTER) && (MENU_POS == 4)) { // Save Adr Modbus
 					MENU_POS = 1;
-					EEPROM_writeAnything((Channel * 12), DimChannelSetup);
-					//WhichDisplay = DS_MENU;
+					WriteMarelabConfig();
+					WhichDisplay = DS_MENU;
 				}
 			}
 			/***********************************************************/
+			
+			/***********************************************************/
+			/* Menu Section for SAFETY Setup                          */
+			/***********************************************************/
+			else if (WhichDisplay == DS_SAFETY) {
+				calcMenu(MENU_SIZE_CLEANING);
+				
+				if ((MENU_POS == 1) && (buttonState == BT_LEFT)) {
+					if (ee_Config.OSMOSE_MAX_CYCLE_TIME >= 1)
+					ee_Config.OSMOSE_MAX_CYCLE_TIME = ee_Config.OSMOSE_MAX_CYCLE_TIME-1;
+					else
+					ee_Config.OSMOSE_MAX_CYCLE_TIME = 32000;
+				}
+				else if ((MENU_POS == 1) && (buttonState == BT_RIGHT)) {
+					if (ee_Config.OSMOSE_MAX_CYCLE_TIME  <= 32000)
+					ee_Config.OSMOSE_MAX_CYCLE_TIME = ee_Config.OSMOSE_MAX_CYCLE_TIME + 1;
+					else
+					ee_Config.OSMOSE_MAX_CYCLE_TIME  = 0;
+				}
+				
+				if ((MENU_POS == 2) && (buttonState == BT_LEFT)) {
+					if (ee_Config.OSMOSE_MAX_REFILL_TANK >= 1)
+					ee_Config.OSMOSE_MAX_REFILL_TANK = ee_Config.OSMOSE_MAX_REFILL_TANK-1;
+					else
+					ee_Config.OSMOSE_MAX_REFILL_TANK = 120;
+				}
+				else if ((MENU_POS == 2) && (buttonState == BT_RIGHT)) {
+					if (ee_Config.OSMOSE_MAX_REFILL_TANK <= 120)
+					ee_Config.OSMOSE_MAX_REFILL_TANK = ee_Config.OSMOSE_MAX_REFILL_TANK + 1;
+					else
+					ee_Config.OSMOSE_MAX_REFILL_TANK = 0;
+				}
+				
+				// Dimm BACK
+				if ((buttonState == BT_ENTER) && (MENU_POS == 3)) { // Back to SetupMenu
+					MENU_POS = 1;
+					WhichDisplay = DS_MENU;
+				}
+				// Dimm SAVE
+				else if ((buttonState == BT_ENTER) && (MENU_POS == 4)) { // Save Adr Modbus
+					MENU_POS = 1;
+					WriteMarelabConfig();
+					WhichDisplay = DS_MENU;
+				}
+			}
+			/***********************************************************/
+
+
+			/***********************************************************/
+			/* Menu Section for Mode Setup                          */
+			/***********************************************************/
+			else if (WhichDisplay == DS_MODE) {
+				calcMenu(MENU_SIZE_MODE);
+				
+				// Manual
+				if (((buttonState == BT_LEFT)||(buttonState == BT_RIGHT)) && (MENU_POS == 1)) { // Modbus ID minus
+					if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_MANUEL) {
+						ee_Config.OSMOSE_MODE = OSMOSE_MODE_AUTO;
+					}else{
+						ee_Config.OSMOSE_MODE = OSMOSE_MODE_MANUEL;
+					}
+				}
+				
+				if (((buttonState == BT_LEFT)||(buttonState == BT_RIGHT)) && (MENU_POS == 2)) { // Modbus ID minus
+					if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_MANUEL) {
+						ee_Config.OSMOSE_MODE = OSMOSE_MODE_AUTO;
+					}else{
+						ee_Config.OSMOSE_MODE = OSMOSE_MODE_MANUEL;
+					}
+				}	
+				
+				// MODE BACK
+				if ((buttonState == BT_ENTER) && (MENU_POS == 3)) { // Back to SetupMenu
+					MENU_POS = 1;
+					WhichDisplay = DS_MENU;
+				}
+				// MODE SAVE
+				else if ((buttonState == BT_ENTER) && (MENU_POS == 4)) { // Save Adr Modbus
+					MENU_POS = 1;
+					WriteMarelabConfig();
+					WhichDisplay = DS_MENU;
+				}
+			}
+			/***********************************************************/			
 
 			/***********************************************************/
 			/* Menu Section for INFO Setup                             */
@@ -1410,73 +1258,122 @@ void ScreenSaver() {
 	MENU_POS = 1;
 }
 
+void reset_Params(void)
+{
+	//Restore to default set of parameters!
+	ee_Config.WriteCheck				= Write_Check;
+	ee_Config.eCLowCal					= 200; //assume ideal probe and amp conditions 1/2 of 4096
+	ee_Config.eCHighCal					= 1380; //using ideal probe slope we end up this many 12bit units away on the 4 scale
+	ee_Config.MARELAB_MODUS				= ACC_STANDALONE;
+	ee_Config.OSMOSE_MODE				= OSMOSE_MODE_AUTO; //OSMOSE_MODE_MANUEL;
+	// Default Debounce settings
+	ee_Config.OSMOSE_DBOUNCE_AQUA		= 3000;		// ms time
+	ee_Config.OSMOSE_DBOUNCE_TOP		= 3000;		// ms time
+	ee_Config.OSMOSE_DBOUNCE_BOTTOM		= 3000;		// ms time
+	// Membran Cleaning
+	ee_Config.OSMOSE_CLEAN_DURATION		= 15;		// Time in sec the CleanVent is opened to clean the osmosis membran
+	ee_Config.OSMOSE_CLEAN_REPEAT		= 1;		// Time in min after a new membran cleaning is initiated
+	// Saftey Feature
+	ee_Config.OSMOSE_MAX_CYCLE_TIME		= 10;		// Time a complete filling of the OSMOSIS Tank can take min
+	ee_Config.OSMOSE_MAX_REFILL_TANK	= 20;		// Max time a tank refill with osmosis water can take sec
+	// Screen Saver Time for activate
+	ee_Config.SCREENSAVER_TIMEOUT		= 120;		// Time until Screensaver gets activated
+	
+	WriteMarelabConfig();
+}
 
-
+void calcEc(int raw)
+{
+	float tempmv, tempgain, Rprobe;
+	tempmv = (float)adc->calcMillivolts(raw);
+	tempgain = (tempmv / (float)oscV) - 1.0; // what is our overall gain again so we can cal our probe leg portion
+	Rprobe = (Rgain / tempgain); // this is our actually Resistivity
+	//adcAVG
+	adcAVG = ((1000000) * kCell) / Rprobe; // this is where we convert to uS inversing so removed neg exponant
+	//adcAVG = temp / 1000.0; //convert to EC from uS
+}
 
 void UpdateSensor(struct TSENSOR &sensor)
 {
-	// Check Sensors & set Actors
 	if (digitalRead(sensor.S_PORT) != sensor.S_LAST_STATE ){
 		sensor.S_STABLE = millis();
 		sensor.S_LAST_STATE = digitalRead(sensor.S_PORT);
-		sensor.S_OK=FALSE;
+		return;	
 	}
-			  
-	//Senor stable over TimeOffset ?
-	if ((millis() - sensor.S_STABLE) >= sensor.S_DBOUNCE){
-		sensor.S_OK = TRUE;	
+	//Senor stable over Time DBOUNCE?
+	if( (millis() - sensor.S_STABLE) >= sensor.S_DBOUNCE){
+		sensor.S_STATE = sensor.S_LAST_STATE;
+		sensor.S_STABLE = millis();
 	}
-			  
 }
 
 void setup() {
+	
+	/* Reading EEPROM									*/
+	ReadMarelabConfig();
+	if (ee_Config.WriteCheck != Write_Check){
+		reset_Params();
+	}
+	ERROR_STATE = 0;
 	// the setup routine runs once when you press reset:
-	pinMode(LED_PIN, OUTPUT);
 	pinMode(SAQUA,INPUT);
-	AQUA.S_PORT = SAQUA;
-	AQUA.S_DBOUNCE = 4000L;
-	AQUA.S_STABLE=0L;
-	AQUA.S_LAST_STATE = digitalRead(SAQUA);
-	AQUA.S_OK = FALSE;
+	AQUA.S_PORT				= SAQUA;
+	AQUA.S_DBOUNCE			= ee_Config.OSMOSE_DBOUNCE_AQUA;
+	AQUA.S_STABLE			= millis();
+	AQUA.S_LAST_STATE		= 0;
+	AQUA.S_STATE			= 0;
+	
 	pinMode(SOHIGH,INPUT);
-	FWTANK_TOP.S_PORT = SOHIGH;
-	FWTANK_TOP.S_DBOUNCE = 4000L;
-	FWTANK_TOP.S_STABLE=0L;
-	FWTANK_TOP.S_LAST_STATE = digitalRead(SOHIGH);
-	FWTANK_TOP.S_OK = FALSE;
+	FWTANK_TOP.S_PORT		= SOHIGH;
+	FWTANK_TOP.S_DBOUNCE	= ee_Config.OSMOSE_DBOUNCE_TOP;
+	FWTANK_TOP.S_STABLE		= millis();
+	FWTANK_TOP.S_LAST_STATE = 0;
+	FWTANK_TOP.S_STATE		= 0;
+	
 	pinMode(SOLOW,INPUT);
-	FWTANK_BOT.S_PORT = SOLOW;
-	FWTANK_BOT.S_DBOUNCE = 4000L;
-	FWTANK_BOT.S_STABLE=0L;
-	FWTANK_BOT.S_LAST_STATE = digitalRead(SOLOW);
-	FWTANK_BOT.S_OK = FALSE;
-	
-	
-	
-	//STATUS_OSMOSE_CLEAN		= FALSE;
-	OSMOSE_CLEAN_RUNTIME	= 60000;
-	OSMOSE_CLEAN_REPEATTIME = 120000;
-	OSMOSE_MODE				= OSMOSE_MODE_AUTO;
+	FWTANK_BOT.S_PORT		= SOLOW;
+	FWTANK_BOT.S_DBOUNCE	= ee_Config.OSMOSE_DBOUNCE_BOTTOM;
+	FWTANK_BOT.S_STABLE		= millis();
+	FWTANK_BOT.S_LAST_STATE = 0;
+	FWTANK_BOT.S_STATE		= 0;
 	
 	osmose_active = FALSE;
-	osmose_active_firsttime=TRUE;
-	boolean CleanOn = FALSE;
-	OSMOSE_START_TIME=0;
-	OSMOSE_RUN_TIME=0;
 	pump_active = FALSE;
-	OSMOSE_MAX_RUNTIME = 0;
+	osmose_active_firsttime=TRUE;
+//	boolean CleanOn = FALSE;
+	OSMOSE_START_TIME	= 0;
+	OSMOSE_RUN_TIME		= 0;
+	REFILL_START_TIME	= 0;
+	REFILL_RUN_TIME		= 0;
+
+	
 	
 	
 	digitalWrite(RESET_PIN, HIGH);
 	delay(100);
 	pinMode(RESET_PIN, OUTPUT);
-	unsigned long timeout = SCREEN_SAVER_TIMEOUT * 1000UL;
-	///MsTimer2::set(timeout, ScreenSaver);
-	///MsTimer2::start();
-	ReadMarelabConfig();
+	//unsigned long timeout = SCREEN_SAVER_TIMEOUT * 1000UL;
 
-	Channel = 0;
-	EEPROM_readAnything((Channel * 12), DimChannelSetup);
+	
+	// Initialize the Pca9554 library
+	Wire.begin();
+	adc = new MCP3221(i2cAdrADC, I2CadcVRef);
+	
+	Pca9554.begin();
+	// Initialization could also be done like this
+	// Set pin mode of pin 0 to output
+	
+	Pca9554.pinMode(0, OUTPUT);
+	Pca9554.pinMode(1, OUTPUT);
+	Pca9554.pinMode(2, OUTPUT);
+	Pca9554.pinMode(3, OUTPUT);
+	
+	// Make it low
+	Pca9554.digitalWrite(0, LOW);
+	Pca9554.digitalWrite(1, LOW);
+	Pca9554.digitalWrite(2, LOW);
+	Pca9554.digitalWrite(3, LOW);
+
 
 	WhichDisplay = DS_LOGO;
 	screen.begin();
@@ -1485,99 +1382,52 @@ void setup() {
 	WhichDisplay=DS_MAIN;
 	MENU_POS=1;
 		
-	mb_reg[MARELAB_DEVICE_ID] = MARELAB_TYPE; /* Set the device ID to get identified 	*/
-	mb_reg[MARELAB_VERSION] = MARELAB_FIRWMARE; /* Set the Firmware Version ID 			*/
-	mb_reg[MARELAB_REGISTER_COUNT] = MODBUS_REGISTER_COUNT; /* Stores the amount of registers for modbus */
+	mb_reg[MARELAB_DEVICE_ID]		= MARELAB_TYPE; /* Set the device ID to get identified 	*/
+	mb_reg[MARELAB_VERSION]			= MARELAB_FIRWMARE; /* Set the Firmware Version ID 			*/
+	mb_reg[MARELAB_REGISTER_COUNT]	= MODBUS_REGISTER_COUNT; /* Stores the amount of registers for modbus */
 
 	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//ee_Config.MARELAB_MODUS = ACC_STANDALONE;					/* Modbus & WLAN Access = 0 */
-
-	mb_reg[LED_COLOR1] = 100;
-	mb_reg[LED_COLOR2] = 200;
-	mb_reg[LED_COLOR3] = 300;
-	mb_reg[LED_COLOR4] = 400;
-	mb_reg[LED_COLOR5] = 500;
-	mb_reg[LED_COLOR6] = 600;
-	mb_reg[LED_COLOR7] = 700;
-	mb_reg[LED_COLOR8] = 800;
-	mb_reg[LED_COLOR9] = 900;
-	mb_reg[LED_COLOR10] = 1000;
-	mb_reg[LED_COLOR11] = 900;
-	mb_reg[LED_COLOR12] = 800;
-	mb_reg[LED_COLOR13] = 700;
-	mb_reg[LED_COLOR14] = 600;
-	mb_reg[LED_COLOR15] = 500;
-	mb_reg[LED_COLOR16] = 400;
-
-	mb_reg[DIMM_TEMPERATUR] = 48;
-	mb_reg[UNIX_DATE1] = 0;
-	mb_reg[UNIX_DATE2] = 0;
+	//ee_Config.MARELAB_MODUS = ACC_STANDALONE;					/* Modbus & WLAN Access = 0 */	
 	mb_reg[MCOMMAND] = 0;
-
-	// Reading EEPROM
-	DimChannel DimChSet;
-	EEPROM_readAnything(0, DimChSet);
-	mb_reg[MDIM_START_MIN] = DimChSet.DIM_START_MIN;
-	mb_reg[MDIM_START_MAX] = DimChSet.DIM_START_MAX;
-	mb_reg[MDIM_START_VALUE] = DimChSet.DIM_START_VALUE;
-	mb_reg[MDIM_END_MAX] = DimChSet.DIM_END_MAX;
-	mb_reg[MDIM_END_VALUE] = DimChSet.DIM_END_VALUE;
-	mb_reg[MDIM_END_MIN] = DimChSet.DIM_END_MIN;
-	mb_reg[MDIM_CHANNEL] = 0;
 
 	//modbusino_slave.setup(MODBUS_BAUD);		/* ModBus Baud Rate			*/
 	//modbus_configure(MODBUS_BAUD, ee_Config.MODBUS_ID, TX_RS485_PIN,MODBUS_REGISTER_COUNT, 0);
-
-
-	Serial.begin(19200);
 	pinMode(TX_RS485_PIN, OUTPUT);
 	digitalWrite(TX_RS485_PIN, LOW);
+	modbus_configure(MODBUS_BAUD, 2, TX_RS485_PIN,MODBUS_REGISTER_COUNT, 0);
 
+	//modbus_configure(19200, 2,TX_RS485_PIN,MODBUS_REGISTER_COUNT, 0);
+	ee_Config.MARELAB_MODUS = ACC_MOD;
 
-
-	pinMode(LED_PIN, OUTPUT);  				// Set ledPin mode
+	//pinMode(LED_PIN, OUTPUT);  			// Set ledPin mode
 	pinMode(BUTTON_ANALOG_PIN, INPUT); 	// Joystick Analog Input
 	MENU_POS = 1;
 
-
-	 //pwm.begin();
-	 //pwm.setPWMFreq(1600);  // This is the maximum PWM frequency
-
-	  // if you want to really speed stuff up, you can go into 'fast 400khz I2C' mode
-	  // some i2c devices dont like this so much so if you're sharing the bus, watch
-	  // out for this!
 	#ifdef TWBR
 	  // save I2C bitrate
 	  uint8_t twbrbackup = TWBR;
 	  // must be changed after calling Wire.begin() (inside pwm.begin())
 	  TWBR = 12; // upgrade to 400KHz!
 	#endif
-
 }
 
-char buf[128];
-String inputString;
-boolean stringComplete = false;
-byte byteRead;
-char inChar;
 
 uint8_t count=0;
+unsigned long LAST_LEITWERT=0;
 
-
+// TEST
 void loop() {
+	byte GlobalStatTmp;
+	mb_reg[MCOMMAND] = 0; /* after each loop setting the modbus command register to 0 */
+	modbus_update(mb_reg);
+	//if (modbus_update(mb_reg) < 0)
+    //		digitalWrite(13, LOW);
+	//else
+	//	digitalWrite(13, HIGH);
+		
 	
-	//pinMode(LED_PIN, OUTPUT);
-	//digitalWrite(LED_PIN, HIGH);
-	//delay(1000);
-	//digitalWrite(LED_PIN, LOW);
-	//delay(1000);
 	
-		mb_reg[MCOMMAND] = 0; /* after each loop setting the modbus command register to 0 */
-	/*if (modbus_update(mb_reg) < 0)
-		//digitalWrite(13, HIGH);
-		// else
-		digitalWrite(13, LOW);
-	*/
+	//*/
 	// Command Interpreter
 	// Executes the command in transfered in the command
 	// register. After executen it is set to 0
@@ -1585,42 +1435,23 @@ void loop() {
 	if (mb_reg[MCOMMAND] == 1) {
 
 	}
-	/* MCOMMAND -> 2  = setRTC Time			*/
+	
+	/* 
+		MCOMMAND -> 2  = BOUNCE & STABLE VALUES from MODBUS
+		 Register into vars	
+	*/
 	else if (mb_reg[ MCOMMAND] == 2) {
-		//DateTime newTime(MakeTime(mb_reg[ UNIX_DATE1], mb_reg[ UNIX_DATE2]));
-		//rtc.adjust(newTime);
+		/*	AQUA.S_DBOUNCE			= mb_reg[MOD_DBOUNCE_AQUA]*1000;
+			AQUA.S_STABLE			= mb_reg[MOD_STABLES_AQUA]*1000;		
+			FWTANK_TOP.S_DBOUNCE	= mb_reg[MOD_DBOUNCE_TANKTOP]*1000;
+			FWTANK_TOP.S_STABLE		= mb_reg[MOD_STABLES_TANKTOP]*1000;
+			FWTANK_BOT.S_DBOUNCE	= mb_reg[MOD_DBOUNCE_TANKBOT]*1000;
+			FWTANK_BOT.S_STABLE		= mb_reg[MOD_STABLES_TANKBOT]*1000;
+			*/
 	}
-	/* MCOMMAND -> 10  = setPWM fills Register 20-26	    */
-	/* Writes the DIMM Parameter for a PWM Channel to EEPROM */
 	else if (mb_reg[ MCOMMAND] == 10) {
-		uint16_t chandel2update;
-		DimChannel DimChSet;
-		DimChSet.DIM_START_MIN = mb_reg[ MDIM_START_MIN];
-		DimChSet.DIM_START_MAX = mb_reg[ MDIM_START_MAX];
-		DimChSet.DIM_START_VALUE = mb_reg[ MDIM_START_VALUE];
-		DimChSet.DIM_END_MAX = mb_reg[ MDIM_END_MAX];
-		DimChSet.DIM_END_VALUE = mb_reg[ MDIM_END_VALUE];
-		DimChSet.DIM_END_MIN = mb_reg[ MDIM_END_MIN];
-		chandel2update = mb_reg[ MDIM_CHANNEL];
-		EEPROM_writeAnything((chandel2update * 12), DimChSet);
 	}
-	/* MCOMMAND -> 11  = getPWM fills Register 20-26						*/
-	/* Reads the PWM Channel Dimm Values from EEPROM    					*/
-	/* To read the registers correct we need two Requests 					*/
-	/* 1.) write MultipleRegisters with command (11) -> get and PWM Chanel (MDIM CHANNEL) 	*/
-	/*        Program transfers EEPROM content to the Register for reading			*/
-	/* 2.) read ReadHoldingRegister (03) -> transfers the PWM Channel Data			*/
 	else if (mb_reg[ MCOMMAND] == 11) {
-		uint16_t chandel2update;
-		chandel2update = mb_reg[ MDIM_CHANNEL];
-		DimChannel DimChSet;
-		EEPROM_readAnything((chandel2update * 12), DimChSet);
-		mb_reg[ MDIM_START_MIN] = DimChSet.DIM_START_MIN;
-		mb_reg[ MDIM_START_MAX] = DimChSet.DIM_START_MAX;
-		mb_reg[ MDIM_START_VALUE] = DimChSet.DIM_START_VALUE;
-		mb_reg[ MDIM_END_MAX] = DimChSet.DIM_END_MAX;
-		mb_reg[ MDIM_END_VALUE] = DimChSet.DIM_END_VALUE;
-		mb_reg[ MDIM_END_MIN] = DimChSet.DIM_END_MIN;
 	}
 
 	/* RESET FOR BOOTLOADING */
@@ -1630,57 +1461,114 @@ void loop() {
 		draw();
 		digitalWrite(RESET_PIN, LOW);
 	}
-	if (ee_Config.MARELAB_MODUS == ACC_STANDALONE){
-	 // CalcDimmValue();				 // Calculate Dimmer values for all 16 channels in standalone mode
-	}
-	DoMenu();
-	draw(); // Redraw display
-	buttonState = BT_NULL;        // Reset before the next check
-
 	
+	buttonState = BT_NULL;        // Reset before the next check
 	// Sensor Actor work
+	
+	GlobalStatTmp	= (AQUA.S_STATE<<0)			| (FWTANK_BOT.S_STATE<<1)		| (FWTANK_TOP.S_STATE<<2);
+	
 	UpdateSensor(AQUA);
 	UpdateSensor(FWTANK_BOT);
 	UpdateSensor(FWTANK_TOP);
 	
 	GlobalStateSensor = 0;
-	if (AQUA.S_OK)
-	   digitalWrite(LED_PIN, AQUA.S_LAST_STATE);
 	   
 	 /* Logic Table to control Pumps & Vents												*/
 	 /* ---------------------------------------------------------------------------------*/
 	 /*					SOHigh	SOLow	SAQUA											*/
-	 /* Osmose Empty	  0		  0			0   PumpOsmose VentFresh ON PumpRefill OFF	*/
-	 /* Osmose Empty	  0	  	  0			1   PumpOsmose VentFresh ON PumpRefill OFF	*/
-	 /* Osmose OK		  0		  1			0   PumpOsmose VentFresh ON PumpRefill ON	*/
-	 /* Osmose OK		  0		  1			1	All OFF IDLE							*/
-	 /* ERROR			  1		  0			0   All OFF									*/
-	 /* ERROR		      1		  0			1   All OFF									*/
-	 /* Osmose OK		  1		  1			0   PumpOsmose VentFresh OFF PumpRefill ON	*/
-	 /* Osmose OK		  1		  1			1   PumpOsmose VentFresh OFF PumpRefill OFF	*/  
+	 /* 0 Osmose Empty	  0		  0			0   PumpOsmose VentFresh ON PumpRefill OFF	*/
+	 /* 1 Osmose Empty	  0	  	  0			1   PumpOsmose VentFresh ON PumpRefill OFF	*/
+	 /* 2 Osmose OK		  0		  1			0   PumpOsmose VentFresh ON PumpRefill ON	*/
+	 /* 3 Osmose OK		  0		  1			1	All OFF IDLE							*/
+	 /* 4 ERROR			  1		  0			0   All OFF									*/
+	 /* 5 ERROR		      1		  0			1   All OFF									*/
+	 /* 6 Osmose OK		  1		  1			0   PumpOsmose VentFresh OFF PumpRefill ON	*/
+	 /* 7 Osmose OK		  1		  1			1   PumpOsmose VentFresh OFF PumpRefill OFF	*/  
 	 
-	if (AQUA.S_OK && FWTANK_TOP.S_OK & FWTANK_BOT.S_OK)
+	//GlobalStateSensor		= (AQUA.S_LAST_STATE<<0)	| (FWTANK_BOT.S_LAST_STATE<<1)	| (FWTANK_TOP.S_LAST_STATE<<2);
+	GlobalStateSensor		= (AQUA.S_STATE<<0)			| (FWTANK_BOT.S_STATE<<1)		| (FWTANK_TOP.S_STATE<<2);
+	if (GlobalStatTmp != GlobalStateSensor)
+		GlobalStateSensorOld = GlobalStatTmp;
+	 
+	 if (ee_Config.OSMOSE_MODE == OSMOSE_MODE_AUTO){
+		 if	  (GlobalStateSensor == 0)
+		 {
+			osmose_active = TRUE;
+			pump_active   = FALSE;	 		  
+		 }
+		 else if(GlobalStateSensor == 1)
+		 {
+			 osmose_active = TRUE;
+			 pump_active   = FALSE;
+		 }
+		 else if(GlobalStateSensor == 2)
+		 {
+			if (GlobalStateSensorOld==0 || GlobalStateSensorOld == 1){ // wenn von voll nach leer dann nicht aktivieren
+				osmose_active = TRUE;
+				pump_active   = TRUE;
+			}else{
+				pump_active   = TRUE;    
+			}
+		 }
+		 else if(GlobalStateSensor == 3)
+		 {
+			if (GlobalStateSensorOld==0 || GlobalStateSensorOld == 1){ // wenn von voll nach leer dann nicht aktivieren
+				osmose_active = TRUE;
+				pump_active   = FALSE;	  
+			}
+			else{
+				pump_active   = FALSE;
+			}
+		 }
+		 else if(GlobalStateSensor == 4)
+		 {
+			 osmose_active	= FALSE;
+			 pump_active	= FALSE;	
+			 ERROR_STATE = 1;	
+		 }
+		 else if(GlobalStateSensor == 5)
+		 {
+			 osmose_active	= FALSE;
+			 pump_active	= FALSE;
+			 ERROR_STATE = 1;	 
+		 }
+		 else if(GlobalStateSensor == 6)
+		 {
+			 osmose_active = FALSE;
+			 pump_active   = TRUE;
+		 }
+		 else if(GlobalStateSensor == 7)
+		 {
+			 osmose_active = FALSE;
+			 pump_active   = FALSE;		 
+		 }
+	 }
+	 
+	/* REFILL TIME CONTROL */
+	if ((pump_active) && (REFILL_START_TIME == 0))
 	{
-		GlobalStateSensor = (AQUA.S_LAST_STATE<<0) | (FWTANK_BOT.S_LAST_STATE<<1) | (FWTANK_TOP.S_LAST_STATE<<2);
+		REFILL_START_TIME = millis();
+	}else
+	{
+		REFILL_RUN_TIME = millis()-REFILL_START_TIME;
 	}
-	else
-	{
-		GlobalStateSensor = GlobalStateSensorOld;
+	if (!pump_active){
+		REFILL_START_TIME = 0;
+		REFILL_RUN_TIME   = 0;
 	}
 	
-	// OSMOSE STEUERUNG
-	/////////////////////////////////////////////////////////
+	/* OSMOSE STEUERUNG    */
 	// FirstTime
 	if (osmose_active && osmose_active_firsttime){
 		OSMOSE_START_TIME = millis();
 		CleanOn = TRUE;
 		osmose_active_firsttime = FALSE;
+		CLEAN_START_TIME = OSMOSE_START_TIME;
 	}
 	
 	// OSMOSE is Running
 	if (osmose_active){
 		OSMOSE_RUN_TIME = millis()-OSMOSE_START_TIME;
-		//osmose_active_firsttime = FALSE;
 	}
 	else
 	{
@@ -1689,55 +1577,67 @@ void loop() {
 		osmose_active_firsttime = TRUE;
 	}
 	
-	// Stop active cleaning
-	if (osmose_active && (OSMOSE_RUN_TIME >= OSMOSE_CLEAN_RUNTIME)){
+	/* CLEANING STEUERUNG STOP CLEANING*/
+	if (osmose_active && (millis() >= (CLEAN_START_TIME + (ee_Config.OSMOSE_CLEAN_DURATION*1000)))) {
 		CleanOn = FALSE;
-		//OSMOSE_START_TIME = millis();
+		CLEAN_START_TIME = millis() + (ee_Config.OSMOSE_CLEAN_REPEAT*60*1000) - (ee_Config.OSMOSE_CLEAN_DURATION*1000);
+	}
+	else if (osmose_active && (millis() >= CLEAN_START_TIME) &&  ((CLEAN_START_TIME + (ee_Config.OSMOSE_CLEAN_DURATION*1000)) >= millis()))
+	{
+		CleanOn = TRUE;
 	}
 	
-	// Repeat Cleaning
-	if (!CleanOn && osmose_active && ( OSMOSE_RUN_TIME >= OSMOSE_CLEAN_REPEATTIME)){
-		CleanOn = TRUE;	 
-		osmose_active_firsttime = TRUE;   
+	
+	/* CHECK IF SENSOR ERROR OR RUNTIME OF OSMOSE(MIN) OR REFILL IS TO LONG */
+	if ((GlobalStateSensor==4) || (GlobalStateSensor==5) || ((OSMOSE_RUN_TIME/1000/60) >= ee_Config.OSMOSE_MAX_CYCLE_TIME) || ((REFILL_RUN_TIME/1000)>ee_Config.OSMOSE_MAX_REFILL_TANK))
+	{
+		if ((GlobalStateSensor==4) || (GlobalStateSensor==5))
+			ERROR_STATE = 1;
+		else
+			ERROR_STATE = 2;
+		// SENSOR FAILURE SO WE SET ERROR AND ALL OFF
+		Pca9554.digitalWrite(PUMP_VENT_CH,		LOW);
+		Pca9554.digitalWrite(PUMP_REFILL,		LOW);
+		Pca9554.digitalWrite(VENT_CLEAN,		LOW);
+	}else{
+		ERROR_STATE = 0;
+		if (osmose_active)
+			Pca9554.digitalWrite(PUMP_VENT_CH,		HIGH);
+		else
+			Pca9554.digitalWrite(PUMP_VENT_CH,		LOW);
+	
+		if (pump_active)
+			Pca9554.digitalWrite(PUMP_REFILL,		HIGH);
+		else
+			Pca9554.digitalWrite(PUMP_REFILL,		LOW);
+		if (CleanOn)
+			Pca9554.digitalWrite(VENT_CLEAN,		HIGH);
+		else
+			Pca9554.digitalWrite(VENT_CLEAN,		LOW);
 	}
 	////////////////////////////////////////////////////////////////////////////////
 	
-	//inputString="";
 
-	while (Serial.available()) {
-			inChar = (char) Serial.read();
-			if ((inChar != '\r')||(inChar != '\n')){
-				buf[count] = inChar; // Store it
-				count++; // Increment where to write next
-				buf[count] = '\0'; // Null terminate the string
-			}
-			if ((inChar == '\r')||(inChar == '\n')){
-				String t(buf);
-				//swSerial.println(buf);
-				//swSerial.println("AT+CWJAP=\"marelab.wlan\",\"1234567812345678\"");
-				digitalWrite(TX_RS485_PIN, HIGH);
-				delay(10);
-				Serial.println(buf);
-				delay(10);
-				digitalWrite(TX_RS485_PIN, LOW);
-				count=0;
-			}
-	}
-/*
-	if (swSerial.available()) {
-		digitalWrite(TX_RS485_PIN, HIGH);
-		delay(10);
-		char inChar;
-		while (swSerial.available()) {
-			inChar = (char) swSerial.read();
-			Serial.print(inChar);
-		}
-		Serial.flush();
-		delay(10);
-		digitalWrite(TX_RS485_PIN, LOW);
-	}
-	*/
+	//LEITWERT ADC
 	
-
+	//You can also use the MCP3221 library at scope level letting instances get created and destroyed as needed
+	//Many instances can be ran as well to match the number of devices on the bus.)
+	//MCP3221 secondI2CADC(altI2CAddress, I2CadcVRef);
+	
+	if (LAST_LEITWERT > 500){
+		//adcAVG = adc->calcRollingAVG();	//This accumulates over time dropping the oldest and shifting an array adding int he newest set for 10 in library .h can be upped keep in mind ram usage#
+		int adcRaw = adc->calcRollingAVG();
+		calcEc(adcRaw);
+		LAST_LEITWERT = 0;
+	}else
+	{
+		LAST_LEITWERT = millis()-LAST_LEITWERT;
+	}
+	
+	
+	/****************************************************/
+	/* DISPLAY UPDATE									*/
+	/****************************************************/
+	DoMenu();
+	draw(); // Redraw display
 }
-

@@ -238,6 +238,18 @@ public:
 	};
 	#endif
 
+void setFontKLein(){
+	disp->setFont(u8g_font_6x10);
+	disp->setFontRefHeightExtendedText();
+	disp->setDefaultForegroundColor();
+	disp->setFontPosTop();
+}
+void setFontGross(){
+	disp->setFont(u8g_font_fub14r);
+	disp->setFontRefHeightExtendedText();
+	disp->setDefaultForegroundColor();
+	disp->setFontPosTop();
+}
 
 	void Show(){
 		#ifdef OLED_U8G
